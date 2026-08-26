@@ -8,8 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Contact extends Model
 {
-    protected $fillable = ['company_id', 'first_name', 'last_name', 'email', 'phone', 'position'];
-
+protected $fillable = ['company_id', 'first_name', 'last_name', 'status', 'email', 'phone', 'position'];
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);

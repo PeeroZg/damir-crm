@@ -2,7 +2,10 @@
     <x-slot name="header">
         <div class="flex justify-between items-center">
             <h2 class="font-semibold text-xl text-gray-800">Tvrtke</h2>
-            <a href="{{ route('companies.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded">+ Nova tvrtka</a>
+<div class="space-x-2">
+    <a href="{{ route('companies.kanban') }}" class="bg-gray-600 text-white px-4 py-2 rounded">Kanban</a>
+    <a href="{{ route('companies.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded">+ Nova tvrtka</a>
+</div>
         </div>
     </x-slot>
 

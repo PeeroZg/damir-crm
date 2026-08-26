@@ -64,4 +64,16 @@ class CompanyController extends Controller
         $company->delete();
         return redirect()->route('companies.index')->with('success', 'Tvrtka je obrisana.');
     }
+    public function kanban()
+    {
+        $companies = Company::orderBy('name')->get();
+        return view('companies.kanban', compact('companies'));
+    }
+
+    public function updateStatus(Request $request, Company $company)
+    {
+        $request->validate(['status' => 'required|in:lead,aktivan,neaktivan']);
+        $company->update(['status' => $request->status]);
+        return redirect()->route('companies.kanban');
+    }
 }
