@@ -2,25 +2,35 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Offer extends Model
 {
-    use SoftDeletes;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'deal_id', 'company_id', 'offer_number', 'amount',
-        'status', 'valid_until', 'notes',
+        'deal_id',
+        'company_id',
+        'offer_number',
+        'amount',
+        'status',
+        'valid_until',
+        'notes',
     ];
 
-    public function deal(): BelongsTo
+    protected $casts = [
+        'amount' => 'decimal:2',
+        'valid_until' => 'date',
+    ];
+
+    public function deal()
     {
         return $this->belongsTo(Deal::class);
     }
 
-    public function company(): BelongsTo
+    public function company()
     {
         return $this->belongsTo(Company::class);
     }

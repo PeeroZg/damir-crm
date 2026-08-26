@@ -20,6 +20,15 @@ Route::middleware('auth')->group(function () {
     Route::patch('/contacts/{contact}/status', [\App\Http\Controllers\ContactController::class, 'updateStatus'])->name('contacts.updateStatus');
     Route::resource('contacts', \App\Http\Controllers\ContactController::class);
 
+    Route::get('/deals/kanban', [\App\Http\Controllers\DealController::class, 'kanban'])->name('deals.kanban');
+    Route::patch('/deals/{deal}/status', [\App\Http\Controllers\DealController::class, 'updateStatus'])->name('deals.updateStatus');
+    Route::resource('deals', \App\Http\Controllers\DealController::class);
+
+    Route::get('/offers/kanban', [\App\Http\Controllers\OfferController::class, 'kanban'])->name('offers.kanban');
+    Route::patch('/offers/{offer}/status', [\App\Http\Controllers\OfferController::class, 'updateStatus'])->name('offers.updateStatus');
+    Route::get('/offers/{offer}/pdf', [\App\Http\Controllers\OfferController::class, 'pdf'])->name('offers.pdf');
+    Route::resource('offers', \App\Http\Controllers\OfferController::class);
+
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
