@@ -34,7 +34,9 @@
                                 <td class="p-3">{{ $deal->status }}</td>
                                 <td class="p-3">
                                     <a href="{{ route('deals.show', $deal) }}" class="text-blue-600">Pregled</a>
-                                    <a href="{{ route('deals.edit', $deal) }}" class="text-yellow-600 ml-2">Uredi</a>
+                                    @if($deal->user_id === auth()->id())
+                                        <a href="{{ route('deals.edit', $deal) }}" class="text-yellow-600 ml-2">Uredi</a>
+                                    @endif
                                 </td>
                             </tr>
                         @endforeach

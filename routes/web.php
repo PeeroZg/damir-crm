@@ -4,11 +4,20 @@ use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return view('welcome');
+    return redirect()->route(auth()->check() ? 'dashboard' : 'login');
 });
 
 Route::get('/dashboard', function () {
-    return view('dashboard');
+    $stats = [
+        'companies' => \App\Models\Company::count(),
+        'contacts' => \App\Models\Contact::count(),
+        'deals' => \App\Models\Deal::count(),
+        'offers' => \App\Models\Offer::count(),
+        'users' => \App\Models\User::count(),
+        'open_deals_value' => \App\Models\Deal::whereNotIn('status', ['dobiven', 'izgubljen'])->sum('value'),
+        'won_deals_value' => \App\Models\Deal::where('status', 'dobiven')->sum('value'),
+    ];
+    return view('dashboard', compact('stats'));
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {

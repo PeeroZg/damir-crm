@@ -27,7 +27,7 @@ class OfferController extends Controller
         $validated = $request->validate([
             'deal_id' => 'required|exists:deals,id',
             'amount' => 'nullable|numeric|min:0',
-            'valid_until' => 'nullable|date',
+            'valid_until' => 'nullable|date|after_or_equal:today',
             'notes' => 'nullable|string',
             'status' => 'required|in:nacrt,poslana,prihvacena,odbijena,istekla',
         ]);
@@ -37,6 +37,8 @@ class OfferController extends Controller
 
         $nextNumber = Offer::max('id') + 1;
         $validated['offer_number'] = 'PON-' . date('Y') . '-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+
+        $validated['user_id'] = auth()->id();
 
         $offer = Offer::create($validated);
 
@@ -55,16 +57,20 @@ class OfferController extends Controller
 
     public function edit(Offer $offer)
     {
+        abort_if($offer->user_id !== auth()->id(), 403, 'Nemaš pravo uređivati ovu ponudu.');
+
         $deals = Deal::with('company')->orderBy('title')->get();
         return view('offers.edit', compact('offer', 'deals'));
     }
 
     public function update(Request $request, Offer $offer)
     {
+        abort_if($offer->user_id !== auth()->id(), 403, 'Nemaš pravo uređivati ovu ponudu.');
+
         $validated = $request->validate([
             'deal_id' => 'required|exists:deals,id',
             'amount' => 'nullable|numeric|min:0',
-            'valid_until' => 'nullable|date',
+            'valid_until' => 'nullable|date|after_or_equal:today',
             'notes' => 'nullable|string',
             'status' => 'required|in:nacrt,poslana,prihvacena,odbijena,istekla',
         ]);
@@ -79,6 +85,8 @@ class OfferController extends Controller
 
     public function destroy(Offer $offer)
     {
+        abort_if($offer->user_id !== auth()->id(), 403, 'Nemaš pravo obrisati ovu ponudu.');
+
         $offer->delete();
         return redirect()->route('offers.index')->with('success', 'Ponuda je obrisana.');
     }
@@ -91,6 +99,8 @@ class OfferController extends Controller
 
     public function updateStatus(Request $request, Offer $offer)
     {
+        abort_if($offer->user_id !== auth()->id(), 403, 'Nemaš pravo mijenjati status ove ponude.');
+
         $request->validate(['status' => 'required|in:nacrt,poslana,prihvacena,odbijena,istekla']);
         $offer->update(['status' => $request->status]);
         return redirect()->route('offers.kanban');

@@ -15,6 +15,18 @@
                     <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                         {{ __('Dashboard') }}
                     </x-nav-link>
+                    <x-nav-link :href="route('companies.index')" :active="request()->routeIs('companies.*')">
+                        {{ __('Tvrtke') }}
+                    </x-nav-link>
+                    <x-nav-link :href="route('contacts.index')" :active="request()->routeIs('contacts.*')">
+                        {{ __('Kontakti') }}
+                    </x-nav-link>
+                    <x-nav-link :href="route('deals.index')" :active="request()->routeIs('deals.*')">
+                        {{ __('Dealovi') }}
+                    </x-nav-link>
+                    <x-nav-link :href="route('offers.index')" :active="request()->routeIs('offers.*')">
+                        {{ __('Ponude') }}
+                    </x-nav-link>
                 </div>
             </div>
 
@@ -70,8 +82,19 @@
             <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                 {{ __('Dashboard') }}
             </x-responsive-nav-link>
+            <x-responsive-nav-link :href="route('companies.index')" :active="request()->routeIs('companies.*')">
+                {{ __('Tvrtke') }}
+            </x-responsive-nav-link>
+            <x-responsive-nav-link :href="route('contacts.index')" :active="request()->routeIs('contacts.*')">
+                {{ __('Kontakti') }}
+            </x-responsive-nav-link>
+            <x-responsive-nav-link :href="route('deals.index')" :active="request()->routeIs('deals.*')">
+                {{ __('Dealovi') }}
+            </x-responsive-nav-link>
+            <x-responsive-nav-link :href="route('offers.index')" :active="request()->routeIs('offers.*')">
+                {{ __('Ponude') }}
+            </x-responsive-nav-link>
         </div>
-
         <!-- Responsive Settings Options -->
         <div class="pt-4 pb-1 border-t border-gray-200 dark:border-gray-600">
             <div class="px-4">

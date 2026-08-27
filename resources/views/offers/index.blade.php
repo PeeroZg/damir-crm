@@ -36,7 +36,9 @@
                                 <td class="p-3">{{ $offer->status }}</td>
                                 <td class="p-3">
                                     <a href="{{ route('offers.show', $offer) }}" class="text-blue-600">Pregled</a>
-                                    <a href="{{ route('offers.edit', $offer) }}" class="text-yellow-600 ml-2">Uredi</a>
+                                    @if($offer->user_id === auth()->id())
+                                        <a href="{{ route('offers.edit', $offer) }}" class="text-yellow-600 ml-2">Uredi</a>
+                                    @endif
                                     <a href="{{ route('offers.pdf', $offer) }}" class="text-green-600 ml-2">PDF</a>
                                 </td>
                             </tr>

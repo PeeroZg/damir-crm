@@ -13,6 +13,7 @@ class Offer extends Model
     protected $fillable = [
         'deal_id',
         'company_id',
+        'user_id',
         'offer_number',
         'amount',
         'status',
@@ -33,5 +34,10 @@ class Offer extends Model
     public function company()
     {
         return $this->belongsTo(Company::class);
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
     }
 }

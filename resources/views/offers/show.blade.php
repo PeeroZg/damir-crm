@@ -15,7 +15,9 @@
             </div>
 
             <div class="mt-4">
-                <a href="{{ route('offers.edit', $offer) }}" class="text-yellow-600">Uredi</a>
+                @if($offer->user_id === auth()->id())
+                    <a href="{{ route('offers.edit', $offer) }}" class="text-yellow-600">Uredi</a>
+                @endif
                 <a href="{{ route('offers.pdf', $offer) }}" class="text-green-600 ml-4">Preuzmi PDF</a>
                 <a href="{{ route('offers.index') }}" class="ml-4 text-gray-600">Natrag</a>
             </div>

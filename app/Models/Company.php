@@ -4,10 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Company extends Model
 {
-protected $fillable = ['name', 'status', 'oib', 'email', 'phone', 'address'];
+    use SoftDeletes;
+
+    protected $fillable = ['name', 'status', 'oib', 'email', 'phone', 'address'];
     public function contacts(): HasMany
     {
         return $this->hasMany(Contact::class);

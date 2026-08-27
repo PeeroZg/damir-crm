@@ -26,6 +26,7 @@
                 <div>
                     <label class="block font-medium">Vrijedi do</label>
                     <input type="date" name="valid_until" value="{{ old('valid_until', $offer->valid_until?->format('Y-m-d')) }}" class="w-full border rounded p-2">
+                    @error('valid_until') <p class="text-red-600 text-sm">{{ $message }}</p> @enderror
                 </div>
 
                 <div>

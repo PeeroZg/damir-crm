@@ -1,58 +1,43 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Damir CRM
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Jednostavan CRM sustav izrađen u Laravelu, prema zadanoj specifikaciji
 
-## About Laravel
+## Tehnologije
+- Laravel 13, PHP 8.4
+- MySQL
+- Blade + Tailwind CSS (Vite)
+- Laravel Breeze (autentifikacija)
+- barryvdh/laravel-dompdf (PDF export)
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Funkcionalnosti
+- Prijava (login)
+- Entiteti: Tvrtke, Kontakti, Dealovi, Ponude — CRUD za svaki
+- Kanban prikaz (po statusu/fazi) za svaki entitet
+- Shortcut za izradu ponude direktno iz Deal Kanban prikaza (automatski prebacuje status deala u "ponuda poslana")
+- Export ponude u PDF
+- Dashboard s pregledom ključnih metrika (broj tvrtki, kontakata, dealova, ponuda, korisnika, vrijednost otvorenih/dobivenih dealova)
+- Soft delete za sve entitete (obrisani zapisi se ne prikazuju, ali ostaju u bazi)
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Poslovne odluke
+- **Kanban je implementiran za sve entitete** (Tvrtke, Kontakti, Dealovi, Ponude), ne samo za Dealove — specifikacija eksplicitno traži Kanban "za svaki entitet".
+- **Deal može imati više Ponuda** (1:N) radi mogućnosti revizije ponude (npr. v1, v2 nakon pregovora).
+- **Kontakt je opcionalan na Dealu** — Deal je uvijek vezan uz Tvrtku, kontakt nije obavezan.
+- **Status update na Kanbanu** rađen kroz dropdown + form submit umjesto drag-and-drop — HTML5 drag-and-drop je nepouzdan na dodirnim uređajima, dropdown radi konzistentno na svim platformama.
+- **Model korištenja: single-tenant interni CRM.** Aplikaciju koristi jedna firma (vlasnik CRM-a) s više zaposlenika (korisnika). Entiteti "Tvrtke" i "Kontakti" predstavljaju klijente/kupce te firme, ne odvojene korisnike sustava — svi zaposlenici ih dijele i vide zajedno, jer je to standardna logika CRM-a.
+- **Vlasništvo nad Dealovima i Ponudama**: svaki Deal i Ponuda vezani su uz korisnika koji ih je kreirao (`user_id`), i samo taj korisnik smije uređivati/brisati/mijenjati status. Tvrtke i Kontakti ostaju zajednički vidljivi i uredivi svim korisnicima, jer predstavljaju zajedničku bazu klijenata firme. Ovo sprječava da jedan zaposlenik nenamjerno izmijeni ili obriše tuđi posao/ponudu.
+- **Registracija i mail nisu dio spec-a** (spec traži samo Login). `MAIL_MAILER` je namjerno postavljen na `log` — email potvrde/reset lozinke se ne šalju stvarno, nego zapisuju u log. Novi korisnici (zaposlenici) se dodaju ručno (npr. preko `php artisan tinker` ili buduće admin funkcije), a ne kroz javnu registraciju, jer to bolje odgovara internom alatu.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Pokretanje projekta lokalno
+1. `git clone https://github.com/PeeroZg/damir-crm.git`
+2. `cd damir-crm`
+3. `composer install`
+4. `cp .env.example .env` — promijeni `DB_CONNECTION` na `mysql` (default je `sqlite`) i popuni `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`
+5. `php artisan key:generate`
+6. `php artisan migrate`
+7. `npm install && npm run build`
+8. `php artisan serve`
 
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
-```
-
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
-
-## Contributing
-
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
-
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## Online
+- URL: https://damircrm.tennisuper.com
+- Repozitorij: https://github.com/PeeroZg/damir-crm
+- Podaci za prijavu: dostavljeni zasebno (vidi popratni email)

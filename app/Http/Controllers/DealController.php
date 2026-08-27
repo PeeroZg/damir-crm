@@ -33,6 +33,8 @@ class DealController extends Controller
             'status' => 'required|in:lead,kvalificiran,ponuda_poslana,pregovori,dobiven,izgubljen',
         ]);
 
+        $validated['user_id'] = auth()->id();
+
         Deal::create($validated);
 
         return redirect()->route('deals.index')->with('success', 'Deal je uspješno dodan.');
@@ -46,6 +48,8 @@ class DealController extends Controller
 
     public function edit(Deal $deal)
     {
+        abort_if($deal->user_id !== auth()->id(), 403, 'Nemaš pravo uređivati ovaj deal.');
+
         $companies = Company::orderBy('name')->get();
         $contacts = Contact::with('company')->orderBy('first_name')->get();
         return view('deals.edit', compact('deal', 'companies', 'contacts'));
@@ -53,6 +57,8 @@ class DealController extends Controller
 
     public function update(Request $request, Deal $deal)
     {
+        abort_if($deal->user_id !== auth()->id(), 403, 'Nemaš pravo uređivati ovaj deal.');
+
         $validated = $request->validate([
             'company_id' => 'required|exists:companies,id',
             'contact_id' => 'nullable|exists:contacts,id',
@@ -74,6 +80,8 @@ class DealController extends Controller
 
     public function destroy(Deal $deal)
     {
+        abort_if($deal->user_id !== auth()->id(), 403, 'Nemaš pravo obrisati ovaj deal.');
+
         $deal->delete();
         return redirect()->route('deals.index')->with('success', 'Deal je obrisan.');
     }
@@ -86,6 +94,8 @@ class DealController extends Controller
 
     public function updateStatus(Request $request, Deal $deal)
     {
+        abort_if($deal->user_id !== auth()->id(), 403, 'Nemaš pravo mijenjati status ovog deala.');
+
         $request->validate(['status' => 'required|in:lead,kvalificiran,ponuda_poslana,pregovori,dobiven,izgubljen']);
 
         $data = ['status' => $request->status];

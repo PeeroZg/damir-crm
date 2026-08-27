@@ -13,6 +13,7 @@ class Deal extends Model
     protected $fillable = [
         'company_id',
         'contact_id',
+        'user_id',
         'title',
         'description',
         'value',
@@ -36,6 +37,10 @@ class Deal extends Model
         return $this->belongsTo(Contact::class);
     }
 
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
     public function offers()
     {
         return $this->hasMany(Offer::class);
