@@ -28,12 +28,12 @@ class Offer extends Model
 
     public function deal()
     {
-        return $this->belongsTo(Deal::class);
+        return $this->belongsTo(Deal::class)->withTrashed();
     }
 
     public function company()
     {
-        return $this->belongsTo(Company::class);
+        return $this->belongsTo(Company::class)->withTrashed();
     }
 
     public function user()

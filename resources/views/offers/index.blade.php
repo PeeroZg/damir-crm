@@ -40,6 +40,13 @@
                                         <a href="{{ route('offers.edit', $offer) }}" class="text-yellow-600 ml-2">Uredi</a>
                                     @endif
                                     <a href="{{ route('offers.pdf', $offer) }}" class="text-green-600 ml-2">PDF</a>
+                                    @if($offer->user_id === auth()->id())
+                                        <form action="{{ route('offers.destroy', $offer) }}" method="POST" class="inline" onsubmit="return confirm('Sigurno obrisati?')">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="text-red-600 ml-2">Obriši</button>
+                                        </form>
+                                    @endif
                                 </td>
                             </tr>
                         @endforeach

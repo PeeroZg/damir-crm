@@ -18,6 +18,11 @@
             <div class="mt-4">
                 @if($deal->user_id === auth()->id())
                     <a href="{{ route('deals.edit', $deal) }}" class="text-yellow-600">Uredi</a>
+                    <form action="{{ route('deals.destroy', $deal) }}" method="POST" class="inline ml-2" onsubmit="return confirm('Sigurno obrisati?')">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="text-red-600">Obriši</button>
+                    </form>
                 @endif
                 <a href="{{ route('deals.index') }}" class="ml-4 text-gray-600">Natrag</a>
             </div>

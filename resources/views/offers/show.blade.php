@@ -19,6 +19,13 @@
                     <a href="{{ route('offers.edit', $offer) }}" class="text-yellow-600">Uredi</a>
                 @endif
                 <a href="{{ route('offers.pdf', $offer) }}" class="text-green-600 ml-4">Preuzmi PDF</a>
+                @if($offer->user_id === auth()->id())
+                    <form action="{{ route('offers.destroy', $offer) }}" method="POST" class="inline ml-2" onsubmit="return confirm('Sigurno obrisati?')">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="text-red-600">Obriši</button>
+                    </form>
+                @endif
                 <a href="{{ route('offers.index') }}" class="ml-4 text-gray-600">Natrag</a>
             </div>
         </div>

@@ -14,7 +14,7 @@ class Contact extends Model
     protected $fillable = ['company_id', 'first_name', 'last_name', 'status', 'email', 'phone', 'position'];
     public function company(): BelongsTo
     {
-        return $this->belongsTo(Company::class);
+        return $this->belongsTo(Company::class)->withTrashed();
     }
 
     public function deals(): HasMany

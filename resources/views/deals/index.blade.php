@@ -36,6 +36,11 @@
                                     <a href="{{ route('deals.show', $deal) }}" class="text-blue-600">Pregled</a>
                                     @if($deal->user_id === auth()->id())
                                         <a href="{{ route('deals.edit', $deal) }}" class="text-yellow-600 ml-2">Uredi</a>
+                                        <form action="{{ route('deals.destroy', $deal) }}" method="POST" class="inline" onsubmit="return confirm('Sigurno obrisati?')">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="text-red-600 ml-2">Obriši</button>
+                                        </form>
                                     @endif
                                 </td>
                             </tr>
