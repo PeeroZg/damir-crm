@@ -2,114 +2,180 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Offer;
+use App\Enums\DealStage;
+use App\Enums\OfferStatus;
+use App\Http\Requests\OfferRequest;
 use App\Models\Deal;
-use Illuminate\Http\Request;
+use App\Models\Offer;
+use App\Services\OfferService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Validation\Rule;
+use Illuminate\View\View;
 
 class OfferController extends Controller
 {
-    public function index()
-    {
-        $offers = Offer::with('deal', 'company')->latest()->paginate(15);
-        return view('offers.index', compact('offers'));
-    }
+    public function __construct(private readonly OfferService $offers) {}
 
-    public function create(Request $request)
+    public function index(Request $request): View
     {
-        $deals = Deal::with('company')->orderBy('title')->get();
-        $selectedDealId = $request->query('deal_id');
-        return view('offers.create', compact('deals', 'selectedDealId'));
-    }
+        $offers = Offer::query()
+            ->search($request->query('q'))
+            ->when(OfferStatus::tryFrom((string) $request->query('status')), fn (Builder $q, $status) => $q->where('status', $status))
+            ->when($request->query('owner') === 'me', fn (Builder $q) => $q->where('owner_id', $request->user()->id))
+            ->with(['company', 'deal', 'owner'])
+            ->latest('issued_at')
+            ->latest('id')
+            ->paginate(15)
+            ->withQueryString();
 
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'deal_id' => 'required|exists:deals,id',
-            'amount' => 'nullable|numeric|min:0',
-            'valid_until' => 'nullable|date|after_or_equal:today',
-            'notes' => 'nullable|string',
-            'status' => 'required|in:nacrt,poslana,prihvacena,odbijena,istekla',
+        return view('offers.index', [
+            'offers' => $offers,
+            'statuses' => OfferStatus::cases(),
         ]);
+    }
 
-        $deal = Deal::findOrFail($validated['deal_id']);
-        $validated['company_id'] = $deal->company_id;
+    public function kanban(Request $request): View
+    {
+        $offers = Offer::query()
+            ->search($request->query('q'))
+            ->with(['company', 'deal'])
+            ->latest('issued_at')
+            ->get()
+            ->groupBy(fn (Offer $o) => $o->status->value);
 
-        $nextNumber = Offer::max('id') + 1;
-        $validated['offer_number'] = 'PON-' . date('Y') . '-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+        return view('offers.kanban', [
+            'columns' => OfferStatus::cases(),
+            'offers' => $offers,
+        ]);
+    }
 
-        $validated['user_id'] = auth()->id();
+    public function create(Request $request): View
+    {
+        $deal = $request->filled('deal_id') ? Deal::with('company')->findOrFail($request->integer('deal_id')) : null;
 
-        $offer = Offer::create($validated);
-
-        if ($deal->status !== 'dobiven' && $deal->status !== 'izgubljen') {
-            $deal->update(['status' => 'ponuda_poslana']);
+        if ($deal) {
+            $this->authorize('create', [Offer::class, $deal]);
         }
 
-        return redirect()->route('offers.index')->with('success', 'Ponuda je uspješno kreirana.');
-    }
-
-    public function show(Offer $offer)
-    {
-        $offer->load('deal', 'company');
-        return view('offers.show', compact('offer'));
-    }
-
-    public function edit(Offer $offer)
-    {
-        abort_if($offer->user_id !== auth()->id(), 403, 'Nemaš pravo uređivati ovu ponudu.');
-
-        $deals = Deal::with('company')->orderBy('title')->get();
-        return view('offers.edit', compact('offer', 'deals'));
-    }
-
-    public function update(Request $request, Offer $offer)
-    {
-        abort_if($offer->user_id !== auth()->id(), 403, 'Nemaš pravo uređivati ovu ponudu.');
-
-        $validated = $request->validate([
-            'deal_id' => 'required|exists:deals,id',
-            'amount' => 'nullable|numeric|min:0',
-            'valid_until' => 'nullable|date|after_or_equal:today',
-            'notes' => 'nullable|string',
-            'status' => 'required|in:nacrt,poslana,prihvacena,odbijena,istekla',
+        return view('offers.create', [
+            'offer' => new Offer([
+                'deal_id' => $deal?->id,
+                'issued_at' => now(),
+                'valid_until' => now()->addDays(config('crm.offer_validity_days')),
+                'vat_rate' => config('crm.vat_rate'),
+            ]),
+            'items' => [['description' => $deal?->title ?? '', 'quantity' => 1, 'unit' => 'pcs', 'unit_price' => (float) ($deal?->value ?? 0), 'discount_percent' => 0]],
+            'deals' => $this->dealOptions($request, $deal?->id),
         ]);
-
-        $deal = Deal::findOrFail($validated['deal_id']);
-        $validated['company_id'] = $deal->company_id;
-
-        $offer->update($validated);
-
-        return redirect()->route('offers.index')->with('success', 'Ponuda je uspješno ažurirana.');
     }
 
-    public function destroy(Offer $offer)
+    public function store(OfferRequest $request): RedirectResponse
     {
-        abort_if($offer->user_id !== auth()->id(), 403, 'Nemaš pravo obrisati ovu ponudu.');
+        $deal = Deal::findOrFail($request->integer('deal_id'));
+        $this->authorize('create', [Offer::class, $deal]);
+
+        $offer = $this->offers->create($deal, $request->user(), $request->validated(), $request->validated('items'));
+
+        return redirect()->route('offers.show', $offer)->with('success', __('Offer :number created.', ['number' => $offer->number]));
+    }
+
+    public function show(Offer $offer): View
+    {
+        $offer->load(['company', 'deal.contact', 'owner', 'items', 'parent', 'revisions', 'auditLogs.user']);
+
+        return view('offers.show', [
+            'offer' => $offer,
+            'statuses' => OfferStatus::cases(),
+        ]);
+    }
+
+    public function edit(Offer $offer): View|RedirectResponse
+    {
+        if (! $offer->isEditable()) {
+            return redirect()->route('offers.show', $offer)
+                ->with('error', __('Only draft offers can be edited. Create a new revision instead.'));
+        }
+
+        $this->authorize('update', $offer);
+
+        return view('offers.edit', [
+            'offer' => $offer,
+            'items' => $offer->items->map->only(['description', 'quantity', 'unit', 'unit_price', 'discount_percent'])->all(),
+        ]);
+    }
+
+    public function update(OfferRequest $request, Offer $offer): RedirectResponse
+    {
+        $this->authorize('update', $offer);
+
+        $this->offers->update($offer, $request->validated(), $request->validated('items'));
+
+        return redirect()->route('offers.show', $offer)->with('success', __('Offer updated.'));
+    }
+
+    public function destroy(Offer $offer): RedirectResponse
+    {
+        $this->authorize('delete', $offer);
 
         $offer->delete();
-        return redirect()->route('offers.index')->with('success', 'Ponuda je obrisana.');
+
+        return redirect()->route('offers.index')->with('success', __('Offer deleted.'));
     }
 
-    public function kanban()
+    public function updateStatus(Request $request, Offer $offer): JsonResponse|RedirectResponse
     {
-        $offers = Offer::with('deal', 'company')->orderBy('offer_number')->get();
-        return view('offers.kanban', compact('offers'));
+        $this->authorize('changeStatus', $offer);
+
+        $data = $request->validate(['status' => ['required', Rule::enum(OfferStatus::class)]]);
+        $this->offers->changeStatus($offer, OfferStatus::from($data['status']));
+
+        $message = $offer->status === OfferStatus::Accepted && $offer->deal?->stage === DealStage::Won
+            ? __('Offer accepted — the deal is marked as won.')
+            : __('Status updated.');
+
+        return $request->expectsJson()
+            ? response()->json(['message' => $message, 'status' => $offer->status->value])
+            : back()->with('success', $message);
     }
 
-    public function updateStatus(Request $request, Offer $offer)
+    public function revise(Request $request, Offer $offer): RedirectResponse
     {
-        abort_if($offer->user_id !== auth()->id(), 403, 'Nemaš pravo mijenjati status ove ponude.');
+        $this->authorize('revise', $offer);
 
-        $request->validate(['status' => 'required|in:nacrt,poslana,prihvacena,odbijena,istekla']);
-        $offer->update(['status' => $request->status]);
-        return redirect()->route('offers.kanban');
+        $revision = $this->offers->createRevision($offer->load('items'), $request->user());
+
+        return redirect()->route('offers.edit', $revision)
+            ->with('success', __('Revision :number created. Adjust it and send it again.', ['number' => $revision->number]));
     }
 
-    public function pdf(Offer $offer)
+    public function pdf(Request $request, Offer $offer): Response
     {
-        $offer->load('deal', 'company');
-        $pdf = Pdf::loadView('offers.pdf', compact('offer'));
-        return $pdf->download($offer->offer_number . '.pdf');
+        if (in_array($request->query('lang'), array_keys(config('crm.locales')), true)) {
+            app()->setLocale($request->query('lang'));
+        }
+
+        $offer->load(['company', 'deal.contact', 'owner', 'items']);
+
+        return Pdf::loadView('offers.pdf', ['offer' => $offer, 'seller' => config('crm.seller')])
+            ->setPaper('a4')
+            ->download($offer->number.'.pdf');
+    }
+
+    /** Deals the current user may prepare offers for (all deals for admins). */
+    private function dealOptions(Request $request, ?int $includeDealId = null)
+    {
+        $user = $request->user();
+
+        return Deal::query()
+            ->with('company')
+            ->when(! $user->isAdmin(), fn (Builder $q) => $q->where('owner_id', $user->id))
+            ->where(fn (Builder $q) => $q->open()->when($includeDealId, fn (Builder $q) => $q->orWhere('id', $includeDealId)))
+            ->orderBy('title')
+            ->get();
     }
 }

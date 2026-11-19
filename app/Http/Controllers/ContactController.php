@@ -2,83 +2,142 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Contact;
+use App\Enums\ContactStatus;
+use App\Http\Requests\ContactRequest;
 use App\Models\Company;
+use App\Models\Contact;
+use App\Models\User;
+use App\Support\Csv;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ContactController extends Controller
 {
-    public function index()
+    private const SORTABLE = ['last_name', 'status', 'created_at'];
+
+    public function index(Request $request): View
     {
-        $contacts = Contact::with('company')->latest()->paginate(15);
-        return view('contacts.index', compact('contacts'));
+        return view('contacts.index', [
+            'contacts' => $this->filteredQuery($request)->with('company')->paginate(15)->withQueryString(),
+            'statuses' => ContactStatus::cases(),
+        ]);
     }
 
-    public function create()
+    public function kanban(Request $request): View
     {
-        $companies = Company::orderBy('name')->get();
-        return view('contacts.create', compact('companies'));
+        $contacts = Contact::query()
+            ->search($request->query('q'))
+            ->with('company')
+            ->orderBy('last_name')
+            ->get()
+            ->groupBy(fn (Contact $c) => $c->status->value);
+
+        return view('contacts.kanban', [
+            'columns' => ContactStatus::cases(),
+            'contacts' => $contacts,
+        ]);
     }
 
-    public function store(Request $request)
+    public function create(Request $request): View
     {
-        $validated = $request->validate([
-            'company_id' => 'required|exists:companies,id',
-            'first_name' => 'required|string|max:255',
-            'last_name' => 'required|string|max:255',
-            'email' => 'nullable|email|max:255',
-            'phone' => 'nullable|string|max:50',
-            'position' => 'nullable|string|max:255',
+        return view('contacts.create', [
+            'contact' => new Contact([
+                'status' => ContactStatus::New,
+                'company_id' => $request->integer('company_id') ?: null,
+            ]),
+            'companies' => Company::orderBy('name')->get(['id', 'name']),
+        ]);
+    }
+
+    public function store(ContactRequest $request): RedirectResponse
+    {
+        $contact = Contact::create($request->validated());
+
+        return redirect()->route('contacts.show', $contact)->with('success', __('Contact created.'));
+    }
+
+    public function show(Contact $contact): View
+    {
+        $contact->load([
+            'company',
+            'deals' => fn ($q) => $q->with('owner')->latest(),
+            'activities' => fn ($q) => $q->with(['author', 'assignee']),
+            'auditLogs' => fn ($q) => $q->with('user')->limit(20),
         ]);
 
-        Contact::create($validated);
-
-        return redirect()->route('contacts.index')->with('success', 'Kontakt je uspješno dodan.');
-    }
-
-    public function show(Contact $contact)
-    {
-        $contact->load('company', 'deals');
-        return view('contacts.show', compact('contact'));
-    }
-
-    public function edit(Contact $contact)
-    {
-        $companies = Company::orderBy('name')->get();
-        return view('contacts.edit', compact('contact', 'companies'));
-    }
-
-    public function update(Request $request, Contact $contact)
-    {
-        $validated = $request->validate([
-            'company_id' => 'required|exists:companies,id',
-            'first_name' => 'required|string|max:255',
-            'last_name' => 'required|string|max:255',
-            'email' => 'nullable|email|max:255',
-            'phone' => 'nullable|string|max:50',
-            'position' => 'nullable|string|max:255',
+        return view('contacts.show', [
+            'contact' => $contact,
+            'users' => User::orderBy('name')->get(),
         ]);
-
-        $contact->update($validated);
-
-        return redirect()->route('contacts.index')->with('success', 'Kontakt je uspješno ažuriran.');
     }
 
-    public function destroy(Contact $contact)
+    public function edit(Contact $contact): View
     {
+        return view('contacts.edit', [
+            'contact' => $contact,
+            'companies' => Company::orderBy('name')->get(['id', 'name']),
+        ]);
+    }
+
+    public function update(ContactRequest $request, Contact $contact): RedirectResponse
+    {
+        $this->authorize('update', $contact);
+
+        $contact->update($request->validated());
+
+        return redirect()->route('contacts.show', $contact)->with('success', __('Contact updated.'));
+    }
+
+    public function destroy(Contact $contact): RedirectResponse
+    {
+        $this->authorize('delete', $contact);
+
         $contact->delete();
-        return redirect()->route('contacts.index')->with('success', 'Kontakt je obrisan.');
-    }
-    public function kanban()
-    {
-        $contacts = Contact::with('company')->orderBy('first_name')->get();
-        return view('contacts.kanban', compact('contacts'));
+
+        return redirect()->route('contacts.index')->with('success', __('Contact deleted.'));
     }
 
-    public function updateStatus(Request $request, Contact $contact)
+    public function updateStatus(Request $request, Contact $contact): JsonResponse|RedirectResponse
     {
-        $request->validate(['status' => 'required|in:aktivan,neaktivan']);
-        $contact->update(['status' => $request->status]);
-        return redirect()->route('contacts.kanban');
+        $this->authorize('update', $contact);
+
+        $data = $request->validate(['status' => ['required', Rule::enum(ContactStatus::class)]]);
+        $contact->update($data);
+
+        return $request->expectsJson()
+            ? response()->json(['message' => __('Status updated.'), 'status' => $contact->status->value])
+            : back()->with('success', __('Status updated.'));
+    }
+
+    public function export(Request $request): StreamedResponse
+    {
+        $rows = $this->filteredQuery($request)->with('company')->lazy()->map(fn (Contact $c) => [
+            $c->first_name, $c->last_name, $c->company?->name, $c->position,
+            $c->email, $c->phone, $c->status->label(), $c->created_at->toDateString(),
+        ]);
+
+        return Csv::download('contacts-'.now()->format('Y-m-d').'.csv', [
+            __('First name'), __('Last name'), __('Company'), __('Position'),
+            __('Email'), __('Phone'), __('Status'), __('Created'),
+        ], $rows);
+    }
+
+    private function filteredQuery(Request $request): Builder
+    {
+        $sort = in_array($request->query('sort'), self::SORTABLE, true) ? $request->query('sort') : 'last_name';
+        $direction = $request->query('dir') === 'desc' ? 'desc' : 'asc';
+
+        return Contact::query()
+            ->search($request->query('q'))
+            ->when(ContactStatus::tryFrom((string) $request->query('status')), fn (Builder $q, $status) => $q->where('status', $status))
+            ->when($request->integer('company'), fn (Builder $q, $id) => $q->where('company_id', $id))
+            ->orderBy($sort, $direction)
+            ->orderBy('first_name')
+            ->orderBy('id');
     }
 }

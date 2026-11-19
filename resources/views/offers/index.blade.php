@@ -1,60 +1,62 @@
-<x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">Ponude</h2>
-    </x-slot>
+<x-layouts.app :title="__('Offers')">
+    <x-page-header :title="__('Offers')" :subtitle="__('Quotes sent to customers, with line items and VAT.')">
+        <x-slot:actions>
+            <x-view-toggle :list="route('offers.index')" :kanban="route('offers.kanban')" active="list" />
+            <x-button icon="plus" :href="route('offers.create')">{{ __('New offer') }}</x-button>
+        </x-slot:actions>
+    </x-page-header>
 
-    <div class="py-6">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="mb-4 flex justify-between">
-                <a href="{{ route('offers.kanban') }}" class="text-blue-600 underline">Kanban prikaz</a>
-                <a href="{{ route('offers.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded">+ Nova ponuda</a>
-            </div>
+    <x-card :padding="false">
+        <x-filter-bar :action="route('offers.index')" :placeholder="__('Search by number, company or deal…')">
+            <select name="status" class="form-input sm:w-40" aria-label="{{ __('Status') }}">
+                <option value="">{{ __('All statuses') }}</option>
+                @foreach ($statuses as $status)
+                    <option value="{{ $status->value }}" @selected(request('status') === $status->value)>{{ $status->label() }}</option>
+                @endforeach
+            </select>
+            <select name="owner" class="form-input sm:w-40" aria-label="{{ __('Owner') }}">
+                <option value="">{{ __('All owners') }}</option>
+                <option value="me" @selected(request('owner') === 'me')>{{ __('My offers') }}</option>
+            </select>
+        </x-filter-bar>
 
-            @if(session('success'))
-                <div class="bg-green-100 text-green-800 p-3 rounded mb-4">{{ session('success') }}</div>
-            @endif
-
-            <div class="bg-white shadow rounded overflow-x-auto">
-                <table class="min-w-full">
-                    <thead>
-                        <tr class="text-left border-b">
-                            <th class="p-3">Broj ponude</th>
-                            <th class="p-3">Deal</th>
-                            <th class="p-3">Tvrtka</th>
-                            <th class="p-3">Iznos</th>
-                            <th class="p-3">Status</th>
-                            <th class="p-3"></th>
+        @if ($offers->isEmpty())
+            <x-empty-state icon="document" :title="__('No offers found')" />
+        @else
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-slate-100">
+                    <thead class="bg-slate-50/60">
+                        <tr>
+                            <th class="table-th">{{ __('Number') }}</th>
+                            <th class="table-th">{{ __('Company / deal') }}</th>
+                            <th class="table-th">{{ __('Status') }}</th>
+                            <th class="table-th">{{ __('Issued') }}</th>
+                            <th class="table-th">{{ __('Valid until') }}</th>
+                            <th class="table-th text-right">{{ __('Total') }}</th>
+                            <th class="table-th"></th>
                         </tr>
                     </thead>
-                    <tbody>
-                        @foreach($offers as $offer)
-                            <tr class="border-b">
-                                <td class="p-3">{{ $offer->offer_number }}</td>
-                                <td class="p-3">{{ $offer->deal->title }}</td>
-                                <td class="p-3">{{ $offer->company->name }}</td>
-                                <td class="p-3">{{ number_format($offer->amount, 2) }} €</td>
-                                <td class="p-3">{{ $offer->status }}</td>
-                                <td class="p-3">
-                                    <a href="{{ route('offers.show', $offer) }}" class="text-blue-600">Pregled</a>
-                                    @if($offer->user_id === auth()->id())
-                                        <a href="{{ route('offers.edit', $offer) }}" class="text-yellow-600 ml-2">Uredi</a>
-                                    @endif
-                                    <a href="{{ route('offers.pdf', $offer) }}" class="text-green-600 ml-2">PDF</a>
-                                    @if($offer->user_id === auth()->id())
-                                        <form action="{{ route('offers.destroy', $offer) }}" method="POST" class="inline" onsubmit="return confirm('Sigurno obrisati?')">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="text-red-600 ml-2">Obriši</button>
-                                        </form>
-                                    @endif
+                    <tbody class="divide-y divide-slate-100">
+                        @foreach ($offers as $offer)
+                            <tr class="hover:bg-slate-50/60">
+                                <td class="table-td"><a href="{{ route('offers.show', $offer) }}" class="font-mono font-medium text-slate-900 hover:text-brand-700">{{ $offer->number }}</a></td>
+                                <td class="table-td">
+                                    <p class="font-medium text-slate-900">{{ $offer->company?->name }}</p>
+                                    <p class="max-w-xs truncate text-xs text-slate-500">{{ $offer->deal?->title }}</p>
+                                </td>
+                                <td class="table-td"><x-status :value="$offer->status" /></td>
+                                <td class="table-td">{{ format_date($offer->issued_at) }}</td>
+                                <td @class(['table-td', 'font-medium text-rose-600' => $offer->status === App\Enums\OfferStatus::Sent && $offer->isExpired()])>{{ format_date($offer->valid_until) }}</td>
+                                <td class="table-td text-right font-semibold">{{ money($offer->total) }}</td>
+                                <td class="table-td text-right">
+                                    <a href="{{ route('offers.pdf', $offer) }}" class="inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-brand-700"><x-icon name="download" class="h-4 w-4" /> PDF</a>
                                 </td>
                             </tr>
                         @endforeach
                     </tbody>
                 </table>
             </div>
-
-            <div class="mt-4">{{ $offers->links() }}</div>
-        </div>
-    </div>
-</x-app-layout>
+            {{ $offers->links() }}
+        @endif
+    </x-card>
+</x-layouts.app>

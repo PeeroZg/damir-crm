@@ -42,6 +42,11 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+
+        // Personal access tokens for the REST API (see AppServiceProvider).
+        'api' => [
+            'driver' => 'api-token',
+        ],
     ],
 
     /*

@@ -3,39 +3,37 @@
 use App\Models\User;
 
 test('login screen can be rendered', function () {
-    $response = $this->get('/login');
-
-    $response->assertStatus(200);
+    $this->get('/login')->assertOk()->assertSee('Damir');
 });
 
 test('users can authenticate using the login screen', function () {
     $user = User::factory()->create();
 
-    $response = $this->post('/login', [
-        'email' => $user->email,
-        'password' => 'password',
-    ]);
+    $this->post('/login', ['email' => $user->email, 'password' => 'password'])
+        ->assertRedirect(route('dashboard', absolute: false));
 
-    $this->assertAuthenticated();
-    $response->assertRedirect(route('dashboard', absolute: false));
+    $this->assertAuthenticatedAs($user);
 });
 
 test('users can not authenticate with invalid password', function () {
     $user = User::factory()->create();
 
-    $this->post('/login', [
-        'email' => $user->email,
-        'password' => 'wrong-password',
-    ]);
+    $this->post('/login', ['email' => $user->email, 'password' => 'wrong-password'])
+        ->assertSessionHasErrors('email');
 
     $this->assertGuest();
 });
 
 test('users can logout', function () {
-    $user = User::factory()->create();
-
-    $response = $this->actingAs($user)->post('/logout');
+    $this->actingAs(User::factory()->create())->post('/logout')->assertRedirect('/');
 
     $this->assertGuest();
-    $response->assertRedirect('/');
+});
+
+test('there is no public registration', function () {
+    $this->get('/register')->assertNotFound();
+});
+
+test('guests are redirected to login', function () {
+    $this->get('/dashboard')->assertRedirect('/login');
 });

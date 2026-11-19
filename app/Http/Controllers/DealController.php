@@ -2,109 +2,187 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Deal;
+use App\Enums\DealStage;
+use App\Http\Requests\DealRequest;
 use App\Models\Company;
 use App\Models\Contact;
+use App\Models\Deal;
+use App\Models\User;
+use App\Support\Csv;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DealController extends Controller
 {
-    public function index()
+    private const SORTABLE = ['title', 'value', 'stage', 'expected_close_date', 'created_at'];
+
+    public function index(Request $request): View
     {
-        $deals = Deal::with('company', 'contact')->latest()->paginate(15);
-        return view('deals.index', compact('deals'));
+        return view('deals.index', [
+            'deals' => $this->filteredQuery($request)->with(['company', 'owner'])->paginate(15)->withQueryString(),
+            'stages' => DealStage::cases(),
+            'users' => User::orderBy('name')->get(['id', 'name']),
+        ]);
     }
 
-    public function create()
+    public function kanban(Request $request): View
     {
-        $companies = Company::orderBy('name')->get();
-        $contacts = Contact::with('company')->orderBy('first_name')->get();
-        return view('deals.create', compact('companies', 'contacts'));
+        $deals = Deal::query()
+            ->search($request->query('q'))
+            ->when($request->query('owner') === 'me', fn (Builder $q) => $q->where('owner_id', $request->user()->id))
+            ->with(['company', 'owner'])
+            ->orderByDesc('value')
+            ->get()
+            ->groupBy(fn (Deal $d) => $d->stage->value);
+
+        return view('deals.kanban', [
+            'columns' => DealStage::cases(),
+            'deals' => $deals,
+        ]);
     }
 
-    public function store(Request $request)
+    public function create(Request $request): View
     {
-        $validated = $request->validate([
-            'company_id' => 'required|exists:companies,id',
-            'contact_id' => 'nullable|exists:contacts,id',
-            'title' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'value' => 'nullable|numeric|min:0',
-            'status' => 'required|in:lead,kvalificiran,ponuda_poslana,pregovori,dobiven,izgubljen',
+        $deal = new Deal([
+            'stage' => DealStage::Lead,
+            'company_id' => $request->integer('company_id') ?: null,
+            'contact_id' => $request->integer('contact_id') ?: null,
+            'expected_close_date' => now()->addMonth(),
         ]);
 
-        $validated['user_id'] = auth()->id();
-
-        Deal::create($validated);
-
-        return redirect()->route('deals.index')->with('success', 'Deal je uspješno dodan.');
-    }
-
-    public function show(Deal $deal)
-    {
-        $deal->load('company', 'contact');
-        return view('deals.show', compact('deal'));
-    }
-
-    public function edit(Deal $deal)
-    {
-        abort_if($deal->user_id !== auth()->id(), 403, 'Nemaš pravo uređivati ovaj deal.');
-
-        $companies = Company::orderBy('name')->get();
-        $contacts = Contact::with('company')->orderBy('first_name')->get();
-        return view('deals.edit', compact('deal', 'companies', 'contacts'));
-    }
-
-    public function update(Request $request, Deal $deal)
-    {
-        abort_if($deal->user_id !== auth()->id(), 403, 'Nemaš pravo uređivati ovaj deal.');
-
-        $validated = $request->validate([
-            'company_id' => 'required|exists:companies,id',
-            'contact_id' => 'nullable|exists:contacts,id',
-            'title' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'value' => 'nullable|numeric|min:0',
-            'status' => 'required|in:lead,kvalificiran,ponuda_poslana,pregovori,dobiven,izgubljen',
-            'lost_reason' => 'nullable|string|max:255',
-        ]);
-
-        if (in_array($validated['status'], ['dobiven', 'izgubljen']) && !$deal->closed_at) {
-            $validated['closed_at'] = now();
+        if ($deal->contact_id && ! $deal->company_id) {
+            $deal->company_id = Contact::find($deal->contact_id)?->company_id;
         }
 
-        $deal->update($validated);
-
-        return redirect()->route('deals.index')->with('success', 'Deal je uspješno ažuriran.');
+        return view('deals.create', $this->formData($deal));
     }
 
-    public function destroy(Deal $deal)
+    public function store(DealRequest $request): RedirectResponse
     {
-        abort_if($deal->user_id !== auth()->id(), 403, 'Nemaš pravo obrisati ovaj deal.');
+        $data = $request->validated();
+        $data['owner_id'] = $request->user()->can('reassign', Deal::class) && ! empty($data['owner_id'])
+            ? $data['owner_id']
+            : $request->user()->id;
 
-        $deal->delete();
-        return redirect()->route('deals.index')->with('success', 'Deal je obrisan.');
+        $deal = Deal::create($data);
+
+        return redirect()->route('deals.show', $deal)->with('success', __('Deal created.'));
     }
 
-    public function kanban()
+    public function show(Deal $deal): View
     {
-        $deals = Deal::with('company')->orderBy('title')->get();
-        return view('deals.kanban', compact('deals'));
+        $deal->load([
+            'company',
+            'contact',
+            'owner',
+            'offers' => fn ($q) => $q->with('owner'),
+            'activities' => fn ($q) => $q->with(['author', 'assignee']),
+            'auditLogs' => fn ($q) => $q->with('user')->limit(20),
+        ]);
+
+        return view('deals.show', [
+            'deal' => $deal,
+            'stages' => DealStage::cases(),
+            'users' => User::orderBy('name')->get(),
+        ]);
     }
 
-    public function updateStatus(Request $request, Deal $deal)
+    public function edit(Deal $deal): View
     {
-        abort_if($deal->user_id !== auth()->id(), 403, 'Nemaš pravo mijenjati status ovog deala.');
+        $this->authorize('update', $deal);
 
-        $request->validate(['status' => 'required|in:lead,kvalificiran,ponuda_poslana,pregovori,dobiven,izgubljen']);
+        return view('deals.edit', $this->formData($deal));
+    }
 
-        $data = ['status' => $request->status];
-        if (in_array($request->status, ['dobiven', 'izgubljen']) && !$deal->closed_at) {
-            $data['closed_at'] = now();
+    public function update(DealRequest $request, Deal $deal): RedirectResponse
+    {
+        $this->authorize('update', $deal);
+
+        $data = $request->validated();
+
+        if (! $request->user()->can('reassign', Deal::class) || empty($data['owner_id'])) {
+            unset($data['owner_id']);
         }
 
         $deal->update($data);
 
-        return redirect()->route('deals.kanban');
+        return redirect()->route('deals.show', $deal)->with('success', __('Deal updated.'));
+    }
+
+    public function destroy(Deal $deal): RedirectResponse
+    {
+        $this->authorize('delete', $deal);
+
+        $deal->delete();
+
+        return redirect()->route('deals.index')->with('success', __('Deal deleted.'));
+    }
+
+    /** Used by the kanban board (JSON) and the stage buttons on the deal page (redirect). */
+    public function updateStage(Request $request, Deal $deal): JsonResponse|RedirectResponse
+    {
+        $this->authorize('update', $deal);
+
+        $data = $request->validate([
+            'stage' => ['required', Rule::enum(DealStage::class)],
+            'lost_reason' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $deal->moveTo(DealStage::from($data['stage']), $data['lost_reason'] ?? null);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => __('Deal moved to :stage.', ['stage' => $deal->stage->label()]),
+                'stage' => $deal->stage->value,
+            ]);
+        }
+
+        return back()->with('success', __('Deal moved to :stage.', ['stage' => $deal->stage->label()]));
+    }
+
+    public function export(Request $request): StreamedResponse
+    {
+        $rows = $this->filteredQuery($request)->with(['company', 'contact', 'owner'])->lazy()->map(fn (Deal $d) => [
+            $d->title, $d->company?->name, $d->contact?->full_name, $d->stage->label(),
+            $d->value, $d->stage->probability(), $d->expected_close_date?->toDateString(),
+            $d->owner?->name, $d->closed_at?->toDateString(), $d->created_at->toDateString(),
+        ]);
+
+        return Csv::download('deals-'.now()->format('Y-m-d').'.csv', [
+            __('Title'), __('Company'), __('Contact'), __('Stage'), __('Value'), __('Probability').' %',
+            __('Expected close'), __('Owner'), __('Closed'), __('Created'),
+        ], $rows);
+    }
+
+    /** @return array<string, mixed> */
+    private function formData(Deal $deal): array
+    {
+        return [
+            'deal' => $deal,
+            'companies' => Company::orderBy('name')->get(['id', 'name']),
+            'contacts' => Contact::orderBy('last_name')->get(['id', 'company_id', 'first_name', 'last_name']),
+            'users' => User::orderBy('name')->get(['id', 'name']),
+        ];
+    }
+
+    private function filteredQuery(Request $request): Builder
+    {
+        $sort = in_array($request->query('sort'), self::SORTABLE, true) ? $request->query('sort') : 'created_at';
+        $direction = $request->query('dir') === 'asc' ? 'asc' : 'desc';
+
+        return Deal::query()
+            ->search($request->query('q'))
+            ->when(DealStage::tryFrom((string) $request->query('stage')), fn (Builder $q, $stage) => $q->where('stage', $stage))
+            ->when($request->query('stage') === 'open', fn (Builder $q) => $q->open())
+            ->when($request->query('owner') === 'me', fn (Builder $q) => $q->where('owner_id', $request->user()->id))
+            ->when(is_numeric($request->query('owner')), fn (Builder $q) => $q->where('owner_id', (int) $request->query('owner')))
+            ->when($request->integer('company'), fn (Builder $q, $id) => $q->where('company_id', $id))
+            ->orderBy($sort, $direction)
+            ->orderByDesc('id');
     }
 }

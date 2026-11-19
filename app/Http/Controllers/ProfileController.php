@@ -5,56 +5,57 @@ namespace App\Http\Controllers;
 use App\Http\Requests\ProfileUpdateRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Redirect;
 use Illuminate\View\View;
 
 class ProfileController extends Controller
 {
-    /**
-     * Display the user's profile form.
-     */
     public function edit(Request $request): View
     {
         return view('profile.edit', [
             'user' => $request->user(),
+            'tokens' => $request->user()->apiTokens()->get(),
         ]);
     }
 
-    /**
-     * Update the user's profile information.
-     */
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
-        $request->user()->fill($request->validated());
+        $user = $request->user();
+        $data = $request->validated();
 
-        if ($request->user()->isDirty('email')) {
-            $request->user()->email_verified_at = null;
+        // Shared demo accounts keep their login e-mail so every visitor can sign in.
+        if ($user->isDemoAccount() && $data['email'] !== $user->email) {
+            return back()->with('error', __('The e-mail of a demo account cannot be changed.'));
         }
 
-        $request->user()->save();
+        $user->fill($data);
 
-        return Redirect::route('profile.edit')->with('status', 'profile-updated');
+        if ($user->isDirty('email')) {
+            $user->email_verified_at = null;
+        }
+
+        $user->save();
+        $request->session()->put('locale', $user->locale);
+
+        return redirect()->route('profile.edit')->with('success', __('Profile saved.'));
     }
 
-    /**
-     * Delete the user's account.
-     */
-    public function destroy(Request $request): RedirectResponse
+    public function storeToken(Request $request): RedirectResponse
     {
-        $request->validateWithBag('userDeletion', [
-            'password' => ['required', 'current_password'],
-        ]);
+        $data = $request->validate(['name' => ['required', 'string', 'max:100']]);
 
-        $user = $request->user();
+        abort_if($request->user()->apiTokens()->count() >= 10, 422, __('You can have at most 10 API tokens.'));
 
-        Auth::logout();
+        $plain = $request->user()->createApiToken($data['name']);
 
-        $user->delete();
+        return redirect()->route('profile.edit')
+            ->with('new_token', $plain)
+            ->with('success', __('API token created. Copy it now — it will not be shown again.'));
+    }
 
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
+    public function destroyToken(Request $request, int $token): RedirectResponse
+    {
+        $request->user()->apiTokens()->whereKey($token)->firstOrFail()->delete();
 
-        return Redirect::to('/');
+        return redirect()->route('profile.edit')->with('success', __('API token revoked.'));
     }
 }

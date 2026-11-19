@@ -3,83 +3,65 @@
 use App\Models\User;
 
 test('profile page is displayed', function () {
-    $user = User::factory()->create();
-
-    $response = $this
-        ->actingAs($user)
-        ->get('/profile');
-
-    $response->assertOk();
+    $this->actingAs(User::factory()->create())->get('/profile')->assertOk();
 });
 
-test('profile information can be updated', function () {
+test('profile information and language can be updated', function () {
     $user = User::factory()->create();
 
-    $response = $this
-        ->actingAs($user)
-        ->patch('/profile', [
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
-
-    $response
+    $this->actingAs($user)
+        ->patch('/profile', ['name' => 'Test User', 'email' => 'test@example.com', 'locale' => 'hr'])
         ->assertSessionHasNoErrors()
         ->assertRedirect('/profile');
 
     $user->refresh();
 
-    $this->assertSame('Test User', $user->name);
-    $this->assertSame('test@example.com', $user->email);
-    $this->assertNull($user->email_verified_at);
+    expect($user->name)->toBe('Test User')
+        ->and($user->email)->toBe('test@example.com')
+        ->and($user->locale)->toBe('hr')
+        ->and($user->email_verified_at)->toBeNull();
 });
 
-test('email verification status is unchanged when the email address is unchanged', function () {
-    $user = User::factory()->create();
+test('the UI switches to Croatian', function () {
+    $user = User::factory()->create(['locale' => 'hr']);
 
-    $response = $this
-        ->actingAs($user)
-        ->patch('/profile', [
-            'name' => 'Test User',
-            'email' => $user->email,
-        ]);
-
-    $response
-        ->assertSessionHasNoErrors()
-        ->assertRedirect('/profile');
-
-    $this->assertNotNull($user->refresh()->email_verified_at);
+    $this->actingAs($user)->get('/dashboard')->assertOk()->assertSee('Otvoreni pipeline');
 });
 
-test('user can delete their account', function () {
-    $user = User::factory()->create();
-
-    $response = $this
-        ->actingAs($user)
-        ->delete('/profile', [
-            'password' => 'password',
-        ]);
-
-    $response
-        ->assertSessionHasNoErrors()
-        ->assertRedirect('/');
-
-    $this->assertGuest();
-    $this->assertNull($user->fresh());
+test('guests can switch the language on the login page', function () {
+    $this->post('/locale/hr')->assertRedirect();
+    $this->get('/login')->assertSee('Prijava');
 });
 
-test('correct password must be provided to delete account', function () {
+test('demo account e-mail cannot be changed', function () {
+    config(['crm.demo.enabled' => true]);
+    $user = User::factory()->create(['email' => 'marko@damircrm.test']);
+
+    $this->actingAs($user)
+        ->patch('/profile', ['name' => 'X', 'email' => 'hacker@example.com', 'locale' => 'en'])
+        ->assertSessionHas('error');
+
+    expect($user->refresh()->email)->toBe('marko@damircrm.test');
+});
+
+test('api tokens can be created and revoked', function () {
     $user = User::factory()->create();
 
-    $response = $this
-        ->actingAs($user)
-        ->from('/profile')
-        ->delete('/profile', [
-            'password' => 'wrong-password',
-        ]);
+    $this->actingAs($user)->post('/profile/tokens', ['name' => 'Zapier'])
+        ->assertSessionHas('new_token');
 
-    $response
-        ->assertSessionHasErrorsIn('userDeletion', 'password')
-        ->assertRedirect('/profile');
+    $token = $user->apiTokens()->first();
+    expect($token->name)->toBe('Zapier');
 
-    $this->assertNotNull($user->fresh());
+    $this->actingAs($user)->delete("/profile/tokens/{$token->id}")->assertRedirect('/profile');
+    expect($user->apiTokens()->count())->toBe(0);
+});
+
+test('a user cannot revoke somebody else\'s token', function () {
+    $owner = User::factory()->create();
+    $owner->createApiToken('mine');
+
+    $this->actingAs(User::factory()->create())
+        ->delete('/profile/tokens/'.$owner->apiTokens()->first()->id)
+        ->assertNotFound();
 });
