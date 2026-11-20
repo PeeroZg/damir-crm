@@ -17,11 +17,12 @@ enum UserRole: string
         };
     }
 
+    /** Design token tone: pill-{tone}, bg-{tone}-bg, text-{tone}-fg, bg-{tone}-solid. */
     public function color(): string
     {
         return match ($this) {
-            self::Admin => 'violet',
-            self::Sales => 'sky',
+            self::Admin => 'volt',
+            self::Sales => 'neutral',
         };
     }
 }

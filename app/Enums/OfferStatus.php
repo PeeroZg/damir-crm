@@ -23,14 +23,15 @@ enum OfferStatus: string
         };
     }
 
+    /** Design token tone: pill-{tone}, bg-{tone}-bg, text-{tone}-fg, bg-{tone}-solid. */
     public function color(): string
     {
         return match ($this) {
-            self::Draft => 'slate',
-            self::Sent => 'sky',
-            self::Accepted => 'emerald',
-            self::Rejected => 'rose',
-            self::Expired => 'amber',
+            self::Draft => 'draft',
+            self::Sent => 'sent',
+            self::Accepted => 'won',
+            self::Rejected => 'lost',
+            self::Expired => 'expired',
         };
     }
 

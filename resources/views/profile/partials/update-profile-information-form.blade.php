@@ -1,27 +1,21 @@
-<x-card :title="__('Account')">
-    <form method="POST" action="{{ route('profile.update') }}" class="space-y-4">
+<section class="card">
+    <div class="card-header"><h2 class="card-title">{{ __('Account') }}</h2><x-status :value="$user->role" /></div>
+    <form method="POST" action="{{ route('profile.update') }}" class="space-y-4 p-5">
         @csrf
         @method('PATCH')
-
         <x-field :label="__('Name')" name="name" required>
-            <input id="name" name="name" type="text" value="{{ old('name', $user->name) }}" required class="form-input">
+            <input id="name" name="name" type="text" value="{{ old('name', $user->name) }}" required @class(['input', 'input-error' => $errors->has('name')])>
         </x-field>
-
         <x-field :label="__('Email')" name="email" required :hint="$user->isDemoAccount() ? __('Demo accounts keep their e-mail so everyone can log in.') : null">
-            <input id="email" name="email" type="email" value="{{ old('email', $user->email) }}" required class="form-input" @readonly($user->isDemoAccount())>
+            <input id="email" name="email" type="email" value="{{ old('email', $user->email) }}" required @class(['input', 'input-error' => $errors->has('email')]) @readonly($user->isDemoAccount())>
         </x-field>
-
         <x-field :label="__('Language')" name="locale" required>
-            <select id="locale" name="locale" class="form-input">
+            <select id="locale" name="locale" class="select">
                 @foreach (config('crm.locales') as $code => $label)
                     <option value="{{ $code }}" @selected(old('locale', $user->locale) === $code)>{{ $label }}</option>
                 @endforeach
             </select>
         </x-field>
-
-        <div class="flex items-center justify-between pt-2">
-            <x-badge :color="$user->role->color()">{{ $user->role->label() }}</x-badge>
-            <x-button type="submit">{{ __('Save') }}</x-button>
-        </div>
+        <div class="flex justify-end pt-1"><x-button type="submit" icon="check">{{ __('Save') }}</x-button></div>
     </form>
-</x-card>
+</section>

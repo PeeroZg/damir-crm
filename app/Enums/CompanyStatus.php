@@ -21,13 +21,14 @@ enum CompanyStatus: string
         };
     }
 
+    /** Design token tone: pill-{tone}, bg-{tone}-bg, text-{tone}-fg, bg-{tone}-solid. */
     public function color(): string
     {
         return match ($this) {
-            self::Lead => 'sky',
-            self::Prospect => 'violet',
-            self::Customer => 'emerald',
-            self::Inactive => 'slate',
+            self::Lead => 'lead',
+            self::Prospect => 'proposal',
+            self::Customer => 'won',
+            self::Inactive => 'draft',
         };
     }
 }

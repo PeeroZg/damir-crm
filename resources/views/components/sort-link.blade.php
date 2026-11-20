@@ -3,10 +3,8 @@
     $current = request('sort', $default);
     $dir = request('dir', 'asc');
     $next = $current === $column && $dir === 'asc' ? 'desc' : 'asc';
+    $active = $current === $column;
 @endphp
-<a href="{{ request()->fullUrlWithQuery(['sort' => $column, 'dir' => $next, 'page' => null]) }}" class="group inline-flex items-center gap-1 hover:text-slate-700">
-    {{ $label }}
-    <span @class(['text-slate-300 group-hover:text-slate-400' => $current !== $column, 'text-brand-600' => $current === $column])>
-        {{ $current === $column && $dir === 'desc' ? '↓' : '↑' }}
-    </span>
+<a href="{{ request()->fullUrlWithQuery(['sort' => $column, 'dir' => $next, 'page' => null]) }}" @class(['th-sort uppercase', 'text-ink-900' => $active])>
+    {{ $label }}<x-icon :name="$active && $dir === 'desc' ? 'chevron-down' : 'arrow-up'" @class(['h-3 w-3', 'text-ink-900' => $active, 'text-ink-300' => ! $active]) />
 </a>

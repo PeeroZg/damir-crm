@@ -1,37 +1,35 @@
 @if ($paginator->hasPages())
-    <nav role="navigation" aria-label="{{ __('Pagination') }}" class="flex items-center justify-between border-t border-slate-100 px-4 py-3">
-        <p class="hidden text-sm text-slate-500 sm:block">
-            {{ __('Showing :from–:to of :total', ['from' => $paginator->firstItem(), 'to' => $paginator->lastItem(), 'total' => $paginator->total()]) }}
-        </p>
-        <div class="flex flex-1 justify-between gap-2 sm:flex-none sm:justify-end">
+    <div class="flex flex-wrap items-center justify-between gap-3 border-t border-ink-100 px-5 py-3">
+        <p class="text-sm text-ink-500">{!! __('Showing :from–:to of :total', [
+            'from' => '<span class="font-medium text-ink-900 tnum">'.$paginator->firstItem(),
+            'to' => $paginator->lastItem().'</span>',
+            'total' => '<span class="font-medium text-ink-900 tnum">'.$paginator->total().'</span>',
+        ]) !!}</p>
+        <nav class="flex items-center gap-1" aria-label="{{ __('Pagination') }}">
             @if ($paginator->onFirstPage())
-                <span class="rounded-lg px-3 py-1.5 text-sm text-slate-300">{{ __('Previous') }}</span>
+                <span class="btn btn-sm btn-ghost pointer-events-none opacity-40" aria-disabled="true"><x-icon name="chevron-left" />{{ __('Previous') }}</span>
             @else
-                <a href="{{ $paginator->previousPageUrl() }}" rel="prev" class="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50">{{ __('Previous') }}</a>
+                <a href="{{ $paginator->previousPageUrl() }}" rel="prev" class="btn btn-sm btn-ghost"><x-icon name="chevron-left" />{{ __('Previous') }}</a>
             @endif
 
-            <div class="hidden items-center gap-1 md:flex">
+            <span class="hidden items-center gap-1 sm:flex">
                 @foreach ($elements as $element)
                     @if (is_string($element))
-                        <span class="px-2 text-sm text-slate-400">{{ $element }}</span>
+                        <span class="px-1 text-sm text-ink-400">{{ $element }}</span>
                     @endif
                     @if (is_array($element))
                         @foreach ($element as $page => $url)
-                            @if ($page == $paginator->currentPage())
-                                <span aria-current="page" class="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-semibold text-white">{{ $page }}</span>
-                            @else
-                                <a href="{{ $url }}" class="rounded-lg px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100">{{ $page }}</a>
-                            @endif
+                            <a href="{{ $url }}" @class(['inline-flex h-8 min-w-[32px] items-center justify-center rounded-md px-2 text-sm font-medium tnum', 'bg-ink-900 text-white' => $page == $paginator->currentPage(), 'text-ink-600 hover:bg-ink-100' => $page != $paginator->currentPage()]) @if ($page == $paginator->currentPage()) aria-current="page" @endif>{{ $page }}</a>
                         @endforeach
                     @endif
                 @endforeach
-            </div>
+            </span>
 
             @if ($paginator->hasMorePages())
-                <a href="{{ $paginator->nextPageUrl() }}" rel="next" class="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50">{{ __('Next') }}</a>
+                <a href="{{ $paginator->nextPageUrl() }}" rel="next" class="btn btn-sm btn-secondary">{{ __('Next') }}<x-icon name="chevron-right" /></a>
             @else
-                <span class="rounded-lg px-3 py-1.5 text-sm text-slate-300">{{ __('Next') }}</span>
+                <span class="btn btn-sm btn-secondary pointer-events-none opacity-40" aria-disabled="true">{{ __('Next') }}<x-icon name="chevron-right" /></span>
             @endif
-        </div>
-    </nav>
+        </nav>
+    </div>
 @endif

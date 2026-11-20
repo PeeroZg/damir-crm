@@ -110,7 +110,11 @@ class ContactController extends Controller
         $contact->update($data);
 
         return $request->expectsJson()
-            ? response()->json(['message' => __('Status updated.'), 'status' => $contact->status->value])
+            ? response()->json([
+                'message' => __('Status updated.'),
+                'status' => $contact->status->value,
+                'toast' => ['title' => __('Status updated'), 'body' => __(':deal moved to :stage.', ['deal' => $contact->full_name, 'stage' => $contact->status->label()])],
+            ])
             : back()->with('success', __('Status updated.'));
     }
 

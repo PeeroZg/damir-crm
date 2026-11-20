@@ -1,31 +1,36 @@
 <x-layouts.app :title="__('Tasks')">
-    <x-page-header :title="__('Tasks')" :subtitle="$showAll ? __('Tasks of the whole team.') : __('Everything assigned to you.')">
+<div class="mx-auto max-w-[960px]">
+    <x-page-header :title="__('Tasks')">
+        <x-slot:description>{{ $showAll ? __('Tasks of the whole team.') : __('Everything assigned to you.') }}</x-slot:description>
         <x-slot:actions>
             @if (auth()->user()->isAdmin())
-                <div class="inline-flex rounded-lg bg-slate-100 p-0.5">
-                    <a href="{{ request()->fullUrlWithQuery(['user' => null, 'page' => null]) }}" @class(['rounded-md px-3 py-1.5 text-xs font-semibold', 'bg-white shadow-sm text-slate-900' => ! $showAll, 'text-slate-500' => $showAll])>{{ __('Mine') }}</a>
-                    <a href="{{ request()->fullUrlWithQuery(['user' => 'all', 'page' => null]) }}" @class(['rounded-md px-3 py-1.5 text-xs font-semibold', 'bg-white shadow-sm text-slate-900' => $showAll, 'text-slate-500' => ! $showAll])>{{ __('Whole team') }}</a>
+                <div class="seg" role="group" aria-label="{{ __('Scope') }}">
+                    <a href="{{ request()->fullUrlWithQuery(['user' => null, 'page' => null]) }}" class="seg-item" @if (! $showAll) aria-current="page" @endif>{{ __('Mine') }}</a>
+                    <a href="{{ request()->fullUrlWithQuery(['user' => 'all', 'page' => null]) }}" class="seg-item" @if ($showAll) aria-current="page" @endif>{{ __('Whole team') }}</a>
                 </div>
             @endif
         </x-slot:actions>
     </x-page-header>
 
-    <div class="mb-4 flex gap-2">
+    <div class="seg mb-3" role="group" aria-label="{{ __('Filter') }}">
         @foreach (['open' => __('Open'), 'overdue' => __('Overdue'), 'done' => __('Done')] as $key => $label)
-            <a href="{{ request()->fullUrlWithQuery(['filter' => $key, 'page' => null]) }}"
-               @class(['inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium', 'bg-brand-600 text-white' => $filter === $key, 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50' => $filter !== $key])>
-                {{ $label }}
-                <span @class(['rounded-full px-1.5 text-xs', 'bg-white/20' => $filter === $key, 'bg-slate-100' => $filter !== $key, 'text-rose-600' => $key === 'overdue' && $counts['overdue'] > 0 && $filter !== $key])>{{ $counts[$key] }}</span>
+            <a href="{{ request()->fullUrlWithQuery(['filter' => $key, 'page' => null]) }}" class="seg-item" @if ($filter === $key) aria-current="page" @endif>
+                {{ $label }} <span @class(['count', 'bg-lost-bg text-lost-fg' => $key === 'overdue' && $counts['overdue'] > 0])>{{ $counts[$key] }}</span>
             </a>
         @endforeach
     </div>
 
-    <x-card :padding="false">
-        @forelse ($tasks as $task)
-            @include('partials.task-row', ['task' => $task, 'compact' => ! $showAll])
-        @empty
+    <section class="card overflow-hidden">
+        @if ($tasks->isEmpty())
             <x-empty-state icon="check-circle" :title="$filter === 'done' ? __('Nothing completed yet') : __('All caught up!')" :description="__('Tasks are created from the Activity panel on a company, contact or deal.')" />
-        @endforelse
-        {{ $tasks->links() }}
-    </x-card>
+        @else
+            <ul class="divide-y divide-ink-100">
+                @foreach ($tasks as $task)
+                    <li>@include('partials.task-row', ['task' => $task, 'compact' => ! $showAll])</li>
+                @endforeach
+            </ul>
+            {{ $tasks->links() }}
+        @endif
+    </section>
+</div>
 </x-layouts.app>

@@ -31,3 +31,20 @@ if (! function_exists('format_date')) {
         return Carbon::instance($date)->format($format);
     }
 }
+
+if (! function_exists('format_date_short')) {
+    /** "Nov 18" / "18. stu" (with the year only when it is not the current one). */
+    function format_date_short(?DateTimeInterface $date): string
+    {
+        if ($date === null) {
+            return '—';
+        }
+
+        $date = Carbon::instance($date);
+        $thisYear = $date->isCurrentYear();
+
+        return app()->getLocale() === 'hr'
+            ? $date->format($thisYear ? 'j.n.' : 'j.n.Y.')
+            : $date->format($thisYear ? 'M j' : "M j 'y");
+    }
+}

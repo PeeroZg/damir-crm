@@ -23,14 +23,15 @@ enum ActivityType: string
         };
     }
 
+    /** Design token tone: pill-{tone}, bg-{tone}-bg, text-{tone}-fg, bg-{tone}-solid. */
     public function color(): string
     {
         return match ($this) {
-            self::Note => 'slate',
-            self::Call => 'sky',
-            self::Meeting => 'violet',
-            self::Email => 'indigo',
-            self::Task => 'amber',
+            self::Note => 'draft',
+            self::Call => 'lead',
+            self::Meeting => 'proposal',
+            self::Email => 'sent',
+            self::Task => 'negotiation',
         };
     }
 
@@ -39,9 +40,9 @@ enum ActivityType: string
         return match ($this) {
             self::Note => 'note',
             self::Call => 'phone',
-            self::Meeting => 'users',
+            self::Meeting => 'user-group',
             self::Email => 'mail',
-            self::Task => 'check',
+            self::Task => 'check-circle',
         };
     }
 }

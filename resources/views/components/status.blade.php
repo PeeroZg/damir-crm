@@ -1,3 +1,3 @@
-{{-- Renders any UI enum (label + color) as a badge. --}}
+{{-- Renders any UI enum (label + tone) as a pill. --}}
 @props(['value'])
-<x-badge :color="$value->color()" {{ $attributes }}>{{ $value->label() }}</x-badge>
+<x-pill :tone="$value->color()" {{ $attributes }}>{{ $value->label() }}</x-pill>

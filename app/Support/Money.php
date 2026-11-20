@@ -25,6 +25,10 @@ class Money
         $amount = (float) $amount;
         $locale ??= app()->getLocale();
 
+        if ($amount == 0) {
+            return $locale === 'hr' ? '0 €' : '€0';
+        }
+
         if (abs($amount) < 1000) {
             return self::format($amount, null, $locale);
         }
@@ -33,7 +37,7 @@ class Money
             ? [$amount / 1_000_000, $locale === 'hr' ? ' mil.' : 'M']
             : [$amount / 1000, $locale === 'hr' ? ' tis.' : 'k'];
 
-        $number = self::number($value, 1, $locale);
+        $number = preg_replace('/[.,]0$/', '', self::number($value, 1, $locale));
 
         return $locale === 'hr' ? "{$number}{$suffix} €" : "€{$number}{$suffix}";
     }

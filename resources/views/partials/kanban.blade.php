@@ -1,60 +1,79 @@
 {{--
     Generic drag & drop board.
-    $columns  list of enum cases      $items  Collection grouped by enum value
-    $card     view rendered per item  $url    PATCH url with __ID__ placeholder
-    $field    request field name      $totals show money totals (uses $item->{$valueField})
+    $columns  enum cases               $items    Collection grouped by enum value
+    $card     view rendered per card   $url      PATCH url with __ID__ placeholder
+    $field    request field name       $totals   show money totals ($valueField)
+    $collapse statuses whose columns only show the latest 3 cards ("Show N more" links to the list)
+    $moreUrl  fn (status) => url        $probability  show "X % probability" (deals)
 --}}
 @php
     $totals ??= true;
     $valueField ??= 'value';
     $reasonFor ??= null;
+    $celebrate ??= null;
+    $collapse ??= [];
+    $probability ??= false;
     $canMove ??= fn ($item) => true;
-    $headerColors = ['slate' => 'bg-slate-400', 'sky' => 'bg-sky-500', 'indigo' => 'bg-indigo-500', 'violet' => 'bg-violet-500', 'amber' => 'bg-amber-500', 'emerald' => 'bg-emerald-500', 'rose' => 'bg-rose-500'];
+    $titleOf ??= fn ($item) => $item->title ?? $item->name ?? '';
 @endphp
 
-<form method="GET" action="{{ $action }}" class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center">
-    <div class="relative sm:w-80">
-        <x-icon name="search" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-        <input type="search" name="q" value="{{ request('q') }}" placeholder="{{ __('Filter cards…') }}" class="form-input pl-9" aria-label="{{ __('Filter cards') }}">
+<form method="GET" action="{{ $action }}" class="flex flex-wrap items-center gap-3">
+    <div class="relative w-full sm:w-[300px]">
+        <x-icon name="search" class="pointer-events-none absolute left-3 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-ink-400" />
+        <label for="kb-filter" class="sr-only">{{ __('Filter cards') }}</label>
+        <input id="kb-filter" type="search" name="q" value="{{ request('q') }}" placeholder="{{ __('Filter cards…') }}" class="input pl-9">
     </div>
     @if ($mineToggle ?? false)
-        <label class="inline-flex items-center gap-2 text-sm text-slate-600">
-            <input type="checkbox" name="owner" value="me" @checked(request('owner') === 'me') onchange="this.form.submit()" class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
-            {{ __('Only mine') }}
+        <label class="flex h-10 items-center gap-2.5 rounded-md px-1 text-base text-ink-700">
+            <input type="checkbox" name="owner" value="me" @checked(request('owner') === 'me') onchange="this.form.submit()" class="checkbox">{{ __('Only mine') }}
         </label>
     @endif
-    <p class="text-xs text-slate-500 sm:ml-auto">{{ __('Tip: drag cards between columns. On mobile use the select on each card.') }}</p>
+    <p class="ml-auto hidden items-center gap-1.5 text-xs text-ink-500 md:flex"><x-icon name="cursor" class="h-4 w-4" />{{ __('Tip: drag cards between columns. On mobile use the select on each card.') }}</p>
 </form>
 
-<div x-data="kanbanBoard({ url: @js($url), field: @js($field), reasonFor: @js($reasonFor), currency: @js(config('crm.currency')) })"
-     class="-mx-4 overflow-x-auto px-4 pb-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-    <div class="flex min-w-max gap-4">
+<div x-data="kanbanBoard({ url: @js($url), field: @js($field), reasonFor: @js($reasonFor), celebrate: @js($celebrate), currency: @js(config('crm.currency')) })"
+     class="-mx-4 mt-4 overflow-x-auto px-4 pb-4 [scrollbar-width:thin] sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8" tabindex="0" aria-label="{{ __('Board') }}">
+    <div class="flex items-start gap-3">
         @foreach ($columns as $column)
-            @php $columnItems = $items->get($column->value, collect()); @endphp
-            <section data-kanban-column class="flex w-72 shrink-0 flex-col rounded-xl bg-slate-100/80">
-                <header class="flex items-center justify-between gap-2 px-3 pb-2 pt-3">
-                    <h2 class="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                        <span class="h-2 w-2 rounded-full {{ $headerColors[$column->color()] }}"></span>
-                        {{ $column->label() }}
-                        <span data-count class="rounded-full bg-white px-2 py-0.5 text-xs font-medium text-slate-500">{{ $columnItems->count() }}</span>
-                    </h2>
+            @php
+                $all = $items->get($column->value, collect());
+                $collapsed = in_array($column, $collapse, true) && $all->count() > 3;
+                $visible = $collapsed ? $all->take(3) : $all;
+                $hidden = $all->slice($visible->count());
+                $tone = $column->color();
+            @endphp
+            <section data-kanban-column data-hidden-count="{{ $hidden->count() }}" data-hidden-value="{{ $totals ? $hidden->sum($valueField) : 0 }}"
+                     @class(['kb-col', 'bg-won-bg/50 ring-won-solid/20' => $tone === 'won']) aria-label="{{ $column->label() }}">
+                <div class="h-1 rounded-t-xl bg-{{ $tone }}-solid" aria-hidden="true"></div>
+                <header class="kb-col-head">
+                    @if ($tone === 'won')
+                        <x-icon name="trophy" class="h-4 w-4 text-won-fg" />
+                    @elseif ($tone === 'lost')
+                        <x-icon name="thumb-down" class="h-4 w-4 text-lost-fg" />
+                    @else
+                        <span class="h-2 w-2 rounded-full bg-{{ $tone }}-solid"></span>
+                    @endif
+                    <h2 class="text-base font-semibold text-ink-900">{{ $column->label() }}</h2>
+                    <span class="count bg-white ring-1 ring-inset ring-ink-150" data-count>{{ $all->count() }}</span>
                     @if ($totals)
-                        <span data-total class="text-xs font-semibold text-slate-500">{{ money($columnItems->sum($valueField)) }}</span>
+                        <span class="ml-auto text-sm font-semibold text-ink-900 tnum" data-total>{{ money($all->sum($valueField)) }}</span>
                     @endif
                 </header>
+                @if ($probability)
+                    <p class="-mt-1 px-3 pb-2 text-2xs font-medium uppercase text-ink-500">{{ __(':percent % probability', ['percent' => $column->probability()]) }}</p>
+                @endif
 
-                <div data-kanban-list data-status="{{ $column->value }}" class="flex min-h-[8rem] flex-1 flex-col gap-2 px-2 pb-2">
-                    @foreach ($columnItems as $item)
+                <div data-kanban-list data-status="{{ $column->value }}" class="kb-list">
+                    @foreach ($visible as $item)
                         @php $movable = $canMove($item); @endphp
-                        <article data-id="{{ $item->getKey() }}" data-value="{{ $totals ? $item->{$valueField} : 0 }}"
+                        <article data-id="{{ $item->getKey() }}" data-value="{{ $totals ? $item->{$valueField} : 0 }}" data-title="{{ $titleOf($item) }}"
                                  @unless ($movable) data-locked title="{{ __('Only the owner or an admin can move this card.') }}" @endunless
-                                 @class(['rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition', 'cursor-grab hover:border-brand-300 hover:shadow active:cursor-grabbing' => $movable, 'opacity-80' => ! $movable])>
+                                 @class(['group kb-card', 'cursor-default' => ! $movable])>
                             @include($card, ['item' => $item])
 
                             @if ($movable)
-                                <label class="mt-2 block sm:hidden">
-                                    <span class="sr-only">{{ __('Move to') }}</span>
-                                    <select data-move @change="moveWithSelect($event.target)" class="form-input py-1 text-xs">
+                                <label class="mt-2.5 block sm:hidden"><span class="sr-only">{{ __('Move to') }}</span>
+                                    <select data-move @change="moveWithSelect($event.target)" class="select input-sm">
                                         @foreach ($columns as $option)
                                             <option value="{{ $option->value }}" @selected($option === $column)>{{ $option->label() }}</option>
                                         @endforeach
@@ -63,7 +82,10 @@
                             @endif
                         </article>
                     @endforeach
-                    <p data-empty @if ($columnItems->isNotEmpty()) hidden @endif class="pointer-events-none rounded-xl border-2 border-dashed border-slate-200 px-3 py-8 text-center text-xs text-slate-400">{{ __('Drop cards here') }}</p>
+                    <p data-empty @if ($all->isNotEmpty()) hidden @endif class="kb-drop pointer-events-none px-3 py-8 text-center text-xs text-ink-500">{{ __('Drop cards here') }}</p>
+                    @if ($collapsed && isset($moreUrl))
+                        <a href="{{ $moreUrl($column) }}" class="flex h-9 items-center justify-center gap-1 rounded-lg text-xs font-medium text-ink-600 hover:bg-white">{{ __('Show :count more', ['count' => $hidden->count()]) }}<x-icon name="chevron-right" class="h-3.5 w-3.5" /></a>
+                    @endif
                 </div>
             </section>
         @endforeach
@@ -71,16 +93,26 @@
 
     @if ($reasonFor)
         {{-- Asked when a deal is dropped into "Lost" --}}
-        <div x-cloak x-show="pending" class="fixed inset-0 z-[65] flex items-center justify-center bg-slate-900/40 p-4" @keydown.escape.window="pending && cancelReason()">
-            <div x-show="pending" x-transition class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl" @click.outside="cancelReason()">
-                <h3 class="text-base font-semibold text-slate-900">{{ __('Why was this deal lost?') }}</h3>
-                <p class="mt-1 text-sm text-slate-500">{{ __('Optional, but it helps to spot patterns later.') }}</p>
-                <input x-ref="reason" x-model="reason" @keydown.enter.prevent="confirmReason()" type="text" maxlength="255" class="form-input mt-4" placeholder="{{ __('e.g. Chose a cheaper competitor') }}">
-                <div class="mt-5 flex justify-end gap-2">
-                    <x-button variant="secondary" @click="cancelReason()">{{ __('Cancel') }}</x-button>
-                    <x-button variant="danger" @click="confirmReason()">{{ __('Mark as lost') }}</x-button>
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4" x-show="pending" x-cloak role="dialog" aria-modal="true" aria-labelledby="lost-h">
+            <div class="absolute inset-0 bg-ink-950/40 backdrop-blur-[2px]" @click="cancelReason()"></div>
+            <form class="modal relative animate-pop-in" @submit.prevent="confirmReason()" @keydown.escape.prevent="cancelReason()" x-trap.noscroll="pending">
+                <div class="p-6">
+                    <div class="flex items-start gap-4">
+                        <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-lost-bg text-lost-fg"><x-icon name="thumb-down" /></span>
+                        <div class="min-w-0">
+                            <h2 id="lost-h" class="font-display text-xl font-bold text-ink-900">{{ __('Why was this deal lost?') }}</h2>
+                            <p class="mt-1 text-sm text-ink-500"><span class="font-medium text-ink-900" x-text="pendingTitle"></span> {{ __('will move to') }} <x-pill tone="lost" class="h-5 align-middle">{{ __('Lost') }}</x-pill></p>
+                        </div>
+                    </div>
+                    <label for="lost-reason" class="label mt-5">{{ __('Lost reason') }}<span class="req" aria-hidden="true">*</span></label>
+                    <textarea id="lost-reason" x-ref="reason" x-model="reason" required maxlength="255" class="textarea" placeholder="{{ __('e.g. Chose a cheaper competitor, budget cut, no decision…') }}"></textarea>
+                    <p class="hint">{{ __('Visible on the deal and in reports, so future you knows what happened.') }}</p>
                 </div>
-            </div>
+                <div class="flex justify-end gap-2 rounded-b-2xl border-t border-ink-100 bg-ink-25 px-6 py-4">
+                    <x-button variant="secondary" @click="cancelReason()">{{ __('Cancel') }}</x-button>
+                    <button type="submit" class="btn bg-lost-fg text-white shadow-xs hover:bg-[#8C1A34]">{{ __('Mark as lost') }}</button>
+                </div>
+            </form>
         </div>
     @endif
 </div>

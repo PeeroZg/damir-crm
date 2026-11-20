@@ -14,6 +14,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\File;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -139,7 +140,15 @@ class OfferController extends Controller
             : __('Status updated.');
 
         return $request->expectsJson()
-            ? response()->json(['message' => $message, 'status' => $offer->status->value])
+            ? response()->json([
+                'message' => $message,
+                'status' => $offer->status->value,
+                'toast' => [
+                    'type' => $offer->status === OfferStatus::Accepted ? 'won' : 'success',
+                    'title' => $message,
+                    'body' => __(':deal moved to :stage.', ['deal' => $offer->number, 'stage' => $offer->status->label()]),
+                ],
+            ])
             : back()->with('success', $message);
     }
 
@@ -160,6 +169,9 @@ class OfferController extends Controller
         }
 
         $offer->load(['company', 'deal.contact', 'owner', 'items']);
+
+        // dompdf caches font metrics here (the folder is not part of the repository).
+        File::ensureDirectoryExists(storage_path('fonts'));
 
         return Pdf::loadView('offers.pdf', ['offer' => $offer, 'seller' => config('crm.seller')])
             ->setPaper('a4')

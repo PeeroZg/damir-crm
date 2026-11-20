@@ -21,13 +21,14 @@ enum ContactStatus: string
         };
     }
 
+    /** Design token tone: pill-{tone}, bg-{tone}-bg, text-{tone}-fg, bg-{tone}-solid. */
     public function color(): string
     {
         return match ($this) {
-            self::New => 'sky',
-            self::Contacted => 'amber',
-            self::Engaged => 'emerald',
-            self::Inactive => 'slate',
+            self::New => 'lead',
+            self::Contacted => 'negotiation',
+            self::Engaged => 'won',
+            self::Inactive => 'draft',
         };
     }
 }

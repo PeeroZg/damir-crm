@@ -20,7 +20,7 @@ in English and Croatian.
 
 | Area | What it does |
 | --- | --- |
-| **Pipeline** | Kanban boards for deals, offers, companies and contacts. Drag & drop with SortableJS (mouse + touch), live column totals, optimistic UI that rolls the card back if the server refuses the move. Dropping a deal on *Lost* asks for a reason. |
+| **Pipeline** | Kanban boards for deals, offers, companies and contacts. Drag & drop with SortableJS (mouse + touch), live column totals, optimistic UI that rolls the card back if the server refuses the move. Dropping a deal on *Lost* asks for a reason, dropping it on *Won* throws a little confetti. |
 | **Deals** | Six stages with win probabilities, weighted forecast, expected close date, owner, lost reason. `closed_at` / `stage_changed_at` are maintained by the model, no matter where the change comes from. |
 | **Offers** | Line items with quantity, unit, unit price and discount; VAT; totals previewed live in the browser but **always recalculated on the server**. Per-year numbering (`OFF-2026-0007`), revisions (`OFF-2026-0007-R2`), PDF export in EN/HR. Only drafts are editable — once sent, you create a revision. |
 | **Business rules** | Creating or sending an offer moves the deal *forward* to *Proposal* (never backwards). Accepting an offer marks the deal as won, copies the offer value to the deal and rejects competing offers. A nightly job expires offers past their validity date. |
@@ -40,14 +40,24 @@ in English and Croatian.
   </tr>
   <tr>
     <td><img src="docs/screenshots/offer-form.png" alt="Offer with line items"></td>
-    <td><img src="docs/screenshots/offer-pdf.png" alt="Offer PDF"></td>
+    <td><img src="docs/screenshots/login.png" alt="Login with one-click demo roles"></td>
   </tr>
 </table>
+
+## Design
+
+The UI has its own small design system: a warm graphite palette (`ink-*`) with a single lime accent (`volt-400`),
+semantic tokens for every deal stage and offer status (background / text / solid, all WCAG AA),
+Bricolage Grotesque for headings, Geist for UI text and Geist Mono for IDs and numbers.
+Everything is Tailwind CSS v3 + Blade components (`resources/views/components`) — buttons, pills, cards, fields, avatars, pagination —
+so pages stay short and consistent. The offer PDF uses the same tokens and embeds Geist (SIL Open Font License, `resources/fonts`).
+
+<img src="docs/screenshots/offer-pdf.png" alt="Offer PDF" width="420">
 
 ## Tech stack
 
 - **Backend:** Laravel 13, PHP 8.4, MySQL / MariaDB (SQLite for tests)
-- **Frontend:** Blade components, Alpine.js, Tailwind CSS, SortableJS, Vite
+- **Frontend:** Blade components, Alpine.js (+ focus plugin), Tailwind CSS, SortableJS, Vite
 - **PDF:** barryvdh/laravel-dompdf
 - **Quality:** Pest (77 tests), Laravel Pint, GitHub Actions CI, `Model::shouldBeStrict()` (no lazy loading / N+1 in dev & tests)
 

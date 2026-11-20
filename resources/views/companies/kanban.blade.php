@@ -1,5 +1,6 @@
 <x-layouts.app :title="__('Companies')">
-    <x-page-header :title="__('Companies')" :subtitle="__('Drag a card to change the relationship status.')">
+    <x-page-header :title="__('Companies')">
+        <x-slot:description>{{ __('Drag a card to change the relationship status.') }}</x-slot:description>
         <x-slot:actions>
             <x-view-toggle :list="route('companies.index')" :kanban="route('companies.kanban')" active="kanban" />
             <x-button icon="plus" :href="route('companies.create')">{{ __('New company') }}</x-button>

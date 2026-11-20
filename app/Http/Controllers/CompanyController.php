@@ -32,6 +32,7 @@ class CompanyController extends Controller
         return view('companies.index', [
             'companies' => $companies,
             'statuses' => CompanyStatus::cases(),
+            'users' => User::orderBy('name')->get(['id', 'name']),
         ]);
     }
 
@@ -126,7 +127,11 @@ class CompanyController extends Controller
         $company->update($data);
 
         return $request->expectsJson()
-            ? response()->json(['message' => __('Status updated.'), 'status' => $company->status->value])
+            ? response()->json([
+                'message' => __('Status updated.'),
+                'status' => $company->status->value,
+                'toast' => ['title' => __('Status updated'), 'body' => __(':deal moved to :stage.', ['deal' => $company->name, 'stage' => $company->status->label()])],
+            ])
             : back()->with('success', __('Status updated.'));
     }
 
@@ -152,6 +157,7 @@ class CompanyController extends Controller
             ->search($request->query('q'))
             ->when(CompanyStatus::tryFrom((string) $request->query('status')), fn (Builder $q, $status) => $q->where('status', $status))
             ->when($request->query('owner') === 'me', fn (Builder $q) => $q->where('owner_id', $request->user()->id))
+            ->when(is_numeric($request->query('owner')), fn (Builder $q) => $q->where('owner_id', (int) $request->query('owner')))
             ->orderBy($sort, $direction)
             ->orderBy('id');
     }

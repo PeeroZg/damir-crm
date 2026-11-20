@@ -1,21 +1,18 @@
 <div x-data x-init="
-        @if (session('success')) $store.toasts.push(@js(session('success')), 'success'); @endif
-        @if (session('error')) $store.toasts.push(@js(session('error')), 'error'); @endif
+        @if (session('success')) $store.toasts.push({ title: @js(session('success')) }); @endif
+        @if (session('error')) $store.toasts.push({ type: 'error', title: @js(session('error')) }); @endif
     "
-     class="pointer-events-none fixed inset-x-0 bottom-0 z-[60] flex flex-col items-center gap-2 p-4 sm:items-end sm:p-6"
-     aria-live="polite">
-    <template x-for="toast in $store.toasts.items" :key="toast.id">
-        <div x-transition.opacity.duration.200ms
-             class="pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-xl bg-white p-4 shadow-lg ring-1 ring-slate-900/5">
-            <span class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-white"
-                  :class="toast.type === 'error' ? 'bg-rose-500' : 'bg-emerald-500'">
-                <svg class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                    <path x-show="toast.type !== 'error'" fill-rule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-8 8a1 1 0 01-1.4 0l-4-4a1 1 0 011.4-1.4L8 12.6l7.3-7.3a1 1 0 011.4 0z" clip-rule="evenodd" />
-                    <path x-show="toast.type === 'error'" fill-rule="evenodd" d="M10 3a1 1 0 011 1v7a1 1 0 11-2 0V4a1 1 0 011-1zm0 11a1.25 1.25 0 110 2.5 1.25 1.25 0 010-2.5z" clip-rule="evenodd" />
-                </svg>
+     class="pointer-events-none fixed bottom-4 right-4 z-[60] flex flex-col items-end gap-2" aria-live="polite" aria-atomic="false">
+    <template x-for="t in $store.toasts.items" :key="t.id">
+        <div class="toast" role="status">
+            <span class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
+                  :class="t.type === 'won' ? 'bg-volt-400 text-ink-900' : (t.type === 'error' ? 'bg-lost-solid text-white' : 'bg-white/10 text-volt-400')">
+                <x-icon name="trophy" class="h-4 w-4" x-show="t.type === 'won'" />
+                <x-icon name="exclamation-circle" class="h-4 w-4" x-show="t.type === 'error'" />
+                <x-icon name="check" class="h-4 w-4" x-show="t.type !== 'won' && t.type !== 'error'" />
             </span>
-            <p class="flex-1 text-sm text-slate-700" x-text="toast.message"></p>
-            <button type="button" class="text-slate-400 hover:text-slate-600" @click="$store.toasts.dismiss(toast.id)" aria-label="{{ __('Close') }}">✕</button>
+            <div class="min-w-0 flex-1 pt-0.5"><p class="font-medium" x-text="t.title"></p><p class="mt-0.5 text-ink-300" x-show="t.body" x-text="t.body"></p></div>
+            <button type="button" class="-m-1 rounded-md p-1 text-ink-400 hover:bg-white/10 hover:text-white" @click="$store.toasts.dismiss(t.id)" aria-label="{{ __('Dismiss') }}"><x-icon name="x" class="h-4 w-4" /></button>
         </div>
     </template>
 </div>

@@ -1,5 +1,7 @@
 <x-layouts.app :title="__('Contacts')">
-    <x-page-header :title="__('Contacts')" :subtitle="__('The people behind your companies.')">
+<div class="mx-auto max-w-[1280px]">
+    <x-page-header :title="__('Contacts')">
+        <x-slot:description>{{ __('The people behind your companies.') }}</x-slot:description>
         <x-slot:actions>
             <x-view-toggle :list="route('contacts.index')" :kanban="route('contacts.kanban')" active="list" />
             <x-button variant="secondary" icon="download" :href="route('contacts.export', request()->query())">CSV</x-button>
@@ -7,9 +9,10 @@
         </x-slot:actions>
     </x-page-header>
 
-    <x-card :padding="false">
+    <section class="card overflow-hidden">
         <x-filter-bar :action="route('contacts.index')" :placeholder="__('Search by name, e-mail or phone…')">
-            <select name="status" class="form-input sm:w-40" aria-label="{{ __('Status') }}">
+            <label for="status" class="sr-only">{{ __('Status') }}</label>
+            <select id="status" name="status" class="select w-full sm:w-[170px]">
                 <option value="">{{ __('All statuses') }}</option>
                 @foreach ($statuses as $status)
                     <option value="{{ $status->value }}" @selected(request('status') === $status->value)>{{ $status->label() }}</option>
@@ -23,32 +26,29 @@
             </x-empty-state>
         @else
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-slate-100">
-                    <thead class="bg-slate-50/60">
+                <table class="table min-w-[860px]">
+                    <thead>
                         <tr>
-                            <th class="table-th"><x-sort-link column="last_name" :label="__('Name')" default="last_name" /></th>
-                            <th class="table-th">{{ __('Company') }}</th>
-                            <th class="table-th">{{ __('Email') }}</th>
-                            <th class="table-th">{{ __('Phone') }}</th>
-                            <th class="table-th"><x-sort-link column="status" :label="__('Status')" default="last_name" /></th>
+                            <th><x-sort-link column="last_name" :label="__('Name')" default="last_name" /></th>
+                            <th>{{ __('Company') }}</th>
+                            <th>{{ __('Email') }}</th>
+                            <th>{{ __('Phone') }}</th>
+                            <th><x-sort-link column="status" :label="__('Status')" default="last_name" /></th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-100">
+                    <tbody>
                         @foreach ($contacts as $contact)
-                            <tr class="hover:bg-slate-50/60">
-                                <td class="table-td">
-                                    <div class="flex items-center gap-3">
-                                        <x-avatar :name="$contact->full_name" />
-                                        <div>
-                                            <a href="{{ route('contacts.show', $contact) }}" class="font-medium text-slate-900 hover:text-brand-700">{{ $contact->full_name }}</a>
-                                            <p class="text-xs text-slate-500">{{ $contact->position }}</p>
-                                        </div>
-                                    </div>
+                            <tr>
+                                <td>
+                                    <a href="{{ route('contacts.show', $contact) }}" class="flex items-center gap-3">
+                                        <x-avatar :name="$contact->full_name" size="lg" class="ring-0" />
+                                        <span class="min-w-0"><span class="block truncate font-medium text-ink-900 hover:underline hover:decoration-volt-500 hover:decoration-2 hover:underline-offset-2">{{ $contact->full_name }}</span><span class="block truncate text-xs text-ink-500">{{ $contact->position }}</span></span>
+                                    </a>
                                 </td>
-                                <td class="table-td">@if ($contact->company)<a href="{{ route('companies.show', $contact->company) }}" class="hover:text-brand-700">{{ $contact->company->name }}</a>@endif</td>
-                                <td class="table-td">@if ($contact->email)<a href="mailto:{{ $contact->email }}" class="hover:text-brand-700">{{ $contact->email }}</a>@else — @endif</td>
-                                <td class="table-td">{{ $contact->phone ?? '—' }}</td>
-                                <td class="table-td"><x-status :value="$contact->status" /></td>
+                                <td>@if ($contact->company)<a href="{{ route('companies.show', $contact->company) }}" class="link-quiet">{{ $contact->company->name }}</a>@endif</td>
+                                <td>@if ($contact->email)<a href="mailto:{{ $contact->email }}" class="link-quiet">{{ $contact->email }}</a>@else<span class="text-ink-400">—</span>@endif</td>
+                                <td class="tnum">{{ $contact->phone ?? '—' }}</td>
+                                <td><x-status :value="$contact->status" /></td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -56,5 +56,6 @@
             </div>
             {{ $contacts->links() }}
         @endif
-    </x-card>
+    </section>
+</div>
 </x-layouts.app>

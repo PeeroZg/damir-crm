@@ -25,15 +25,16 @@ enum DealStage: string
         };
     }
 
+    /** Design token tone: pill-{tone}, bg-{tone}-bg, text-{tone}-fg, bg-{tone}-solid. */
     public function color(): string
     {
         return match ($this) {
-            self::Lead => 'sky',
-            self::Qualified => 'indigo',
-            self::Proposal => 'violet',
-            self::Negotiation => 'amber',
-            self::Won => 'emerald',
-            self::Lost => 'rose',
+            self::Lead => 'lead',
+            self::Qualified => 'qualified',
+            self::Proposal => 'proposal',
+            self::Negotiation => 'negotiation',
+            self::Won => 'won',
+            self::Lost => 'lost',
         };
     }
 

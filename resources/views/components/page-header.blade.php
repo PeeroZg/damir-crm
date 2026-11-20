@@ -1,18 +1,21 @@
 @props(['title', 'subtitle' => null, 'back' => null])
-<div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+@if ($back)
+    <a href="{{ $back['url'] }}" class="inline-flex items-center gap-1.5 text-sm font-medium text-ink-500 hover:text-ink-900">
+        <x-icon name="arrow-left" class="h-4 w-4" />{{ $back['label'] }}
+    </a>
+@endif
+<div @class(['flex flex-wrap justify-between gap-4', 'items-start' => $subtitle, 'items-end' => ! $subtitle, 'mt-2' => $back, 'mb-6'])>
     <div class="min-w-0">
-        @if ($back)
-            <a href="{{ $back['url'] }}" class="mb-1 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700">
-                <span aria-hidden="true">←</span> {{ $back['label'] }}
-            </a>
-        @endif
-        <h1 class="truncate text-2xl font-bold tracking-tight text-slate-900">{{ $title }}</h1>
+        {{ $eyebrow ?? '' }}
+        <h1 class="page-title">{{ $title }}</h1>
         @if ($subtitle)
-            <div class="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-500">{{ $subtitle }}</div>
+            <div class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-base text-ink-600">{{ $subtitle }}</div>
         @endif
-        {{ $meta ?? '' }}
+        @isset($description)
+            <p class="page-sub">{{ $description }}</p>
+        @endisset
     </div>
     @isset($actions)
-        <div class="flex shrink-0 flex-wrap items-center gap-2">{{ $actions }}</div>
+        <div class="flex flex-wrap items-center gap-2">{{ $actions }}</div>
     @endisset
 </div>

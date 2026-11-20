@@ -38,7 +38,9 @@ class DealController extends Controller
             ->with(['company', 'owner'])
             ->orderByDesc('value')
             ->get()
-            ->groupBy(fn (Deal $d) => $d->stage->value);
+            ->groupBy(fn (Deal $d) => $d->stage->value)
+            // Closed columns show the most recent deals first (only the latest few are rendered).
+            ->map(fn ($group, $stage) => DealStage::from($stage)->isClosed() ? $group->sortByDesc('closed_at')->values() : $group);
 
         return view('deals.kanban', [
             'columns' => DealStage::cases(),
@@ -136,9 +138,16 @@ class DealController extends Controller
         $deal->moveTo(DealStage::from($data['stage']), $data['lost_reason'] ?? null);
 
         if ($request->expectsJson()) {
+            $won = $deal->stage === DealStage::Won;
+
             return response()->json([
                 'message' => __('Deal moved to :stage.', ['stage' => $deal->stage->label()]),
                 'stage' => $deal->stage->value,
+                'toast' => [
+                    'type' => $won ? 'won' : 'success',
+                    'title' => $won ? __('Deal won — nice work!') : __('Stage updated'),
+                    'body' => __(':deal moved to :stage.', ['deal' => $deal->title, 'stage' => $deal->stage->label()]),
+                ],
             ]);
         }
 

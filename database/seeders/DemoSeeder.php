@@ -325,7 +325,7 @@ class DemoSeeder extends Seeder
 
         $this->logCreated($offer, $owner, $issued);
         if ($status !== OfferStatus::Draft) {
-            $this->audit[] = $this->auditRow($offer, $owner, 'updated', ['status' => ['old' => 'draft', 'new' => 'sent']], $issued->copy()->addHour());
+            $this->audit[] = $this->auditRow($offer, $owner, 'updated', ['status' => ['old' => 'draft', 'new' => 'sent']], $issued->copy()->addHour()->min(now()));
         }
         if ($status->isFinal()) {
             $this->audit[] = $this->auditRow($offer, $owner, 'updated', ['status' => ['old' => 'sent', 'new' => $status->value]], $closed ?? $issued);

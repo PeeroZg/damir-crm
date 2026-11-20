@@ -1,24 +1,15 @@
-@props(['variant' => 'primary', 'href' => null, 'icon' => null, 'size' => 'md'])
+@props(['variant' => 'primary', 'href' => null, 'icon' => null, 'iconRight' => null, 'size' => 'md'])
 @php
+    // Literal class names so Tailwind's content scanner keeps them in the build.
     $variants = [
-        'primary' => 'bg-brand-600 text-white shadow-sm hover:bg-brand-500 focus-visible:outline-brand-600',
-        'secondary' => 'bg-white text-slate-700 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50',
-        'danger' => 'bg-rose-600 text-white shadow-sm hover:bg-rose-500 focus-visible:outline-rose-600',
-        'ghost' => 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
-        'success' => 'bg-emerald-600 text-white shadow-sm hover:bg-emerald-500 focus-visible:outline-emerald-600',
+        'primary' => 'btn-primary', 'secondary' => 'btn-secondary', 'ghost' => 'btn-ghost',
+        'danger' => 'btn-danger', 'success' => 'btn-success', 'accent' => 'btn-accent',
     ];
-    $sizes = ['sm' => 'px-2.5 py-1.5 text-xs gap-1', 'md' => 'px-3.5 py-2 text-sm gap-1.5'];
-    $classes = 'inline-flex items-center justify-center rounded-lg font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 '
-        .($variants[$variant] ?? $variants['primary']).' '.$sizes[$size];
+    $sizes = ['sm' => 'btn-sm', 'md' => '', 'lg' => 'btn-lg'];
+    $classes = trim('btn '.($variants[$variant] ?? $variants['primary']).' '.($sizes[$size] ?? ''));
 @endphp
 @if ($href)
-    <a href="{{ $href }}" {{ $attributes->merge(['class' => $classes]) }}>
-        @if ($icon)<x-icon :name="$icon" class="h-4 w-4" />@endif
-        {{ $slot }}
-    </a>
+    <a href="{{ $href }}" {{ $attributes->merge(['class' => $classes]) }}>@if ($icon)<x-icon :name="$icon" />@endif{{ $slot }}@if ($iconRight)<x-icon :name="$iconRight" />@endif</a>
 @else
-    <button {{ $attributes->merge(['type' => 'button', 'class' => $classes]) }}>
-        @if ($icon)<x-icon :name="$icon" class="h-4 w-4" />@endif
-        {{ $slot }}
-    </button>
+    <button {{ $attributes->merge(['type' => 'button', 'class' => $classes]) }}>@if ($icon)<x-icon :name="$icon" />@endif{{ $slot }}@if ($iconRight)<x-icon :name="$iconRight" />@endif</button>
 @endif
